@@ -1002,66 +1002,77 @@ shinyServer(function(input, output, session){
   ##### Time Series ####
   observeEvent(input$AboutTimeSeries, showModal(
     modalDialog(title="About Time Series Graphs", footer=tagAppendAttributes( modalButton(tags$div("Close")), class="btn btn-primary"),
-                includeHTML("./www/AboutTimeSeries.html")
+                # includeHTML("./www/AboutTimeSeries.html")
+                tags$iframe(src = "AboutTimeSeries.html",
+                            width = "100%",
+                            height = "600px",
+                            style = "border:none;")
     )
   ))
 
   ##### Scatter Plot ####
   observeEvent(input$AboutScatterPlot, showModal(
     modalDialog(title="About Scatter Plot", footer=tagAppendAttributes( modalButton(tags$div("Close")), class="btn btn-primary"),
-                includeHTML("./www/AboutScatterPlot.html")
+                # includeHTML("./www/AboutScatterPlot.html")
+                tags$iframe(src = "AboutScatterPlot.html",
+                            width = "100%",
+                            height = "600px",
+                            style = "border:none;")
     )
   ))
-
-  # observeEvent(input$ScatterPlot, {
-  #   showModal(
-  #     modalDialog(
-  #       title = "About Scatter Plot",
-  #       size - "l",
-  #       footer = tagAppendAttributes(
-  #         modalButton(tags$div("Close")),
-  #         class = "btn btn-primary"
-  #       ),
-  #       tags$iframe(
-  #         src = "AboutScatterPlot.html",
-  #         style = "width:100%; height:70vh; border:none;"
-  #       )
-  #     )
-  #   )
-  # })
 
   ##### Box Plots ####
   observeEvent(input$AboutComparisons, showModal(
     modalDialog(title="About Boxplot Graphs", footer=tagAppendAttributes( modalButton(tags$div("Close")), class="btn btn-primary"),
-                includeHTML("./www/AboutComparisons.html")
+                # includeHTML("./www/AboutComparisons.html")
+                tags$iframe(src = "AboutComparisions.html",
+                            width = "100%",
+                            height = "600px",
+                            style = "border:none;")
     )
   ))
 
   ##### Correlation Plots ####
   observeEvent(input$AboutCorrelations, showModal(
     modalDialog(title="About Correlation Graphs", footer=tagAppendAttributes( modalButton(tags$div("Close")), class="btn btn-primary"),
-                includeHTML("./www/AboutCorrelations.html")
+                # includeHTML("./www/AboutCorrelations.html")
+                tags$iframe(src = "AboutCorrelations.html",
+                            width = "100%",
+                            height = "600px",
+                            style = "border:none;")
     )
   ))
 
   ##### Map ####
   observeEvent(input$AboutMap, showModal(
     modalDialog(title="About the Map", footer=tagAppendAttributes( modalButton(tags$div("Close")), class="btn btn-primary"),
-                includeHTML("./www/AboutMap.html")
+                # includeHTML("./www/AboutMap.html")
+                tags$iframe(src = "AboutMap.html",
+                            width = "100%",
+                            height = "600px",
+                            style = "border:none;")
     )
   ))
 
   ##### Summary ####
   observeEvent(input$AboutSummary, showModal(
     modalDialog(title="About the Table", footer=tagAppendAttributes( modalButton(tags$div("Close")), class="btn btn-primary"),
-                includeHTML("./www/AboutSummary.Rhtml")
+                # includeHTML("./www/AboutSummary.Rhtml")
+                tags$iframe(src = "AboutSummary.html",
+                            width = "100%",
+                            height = "600px",
+                            style = "border:none;")
     )
   ))
 
   ##### Exceedances ####
   observeEvent(input$AboutExceedances, showModal(
     modalDialog(title="About Exceedances", footer=tagAppendAttributes( modalButton(tags$div("Close")), class="btn btn-primary"),
-                includeHTML("./www/AboutExceedances.Rhtml")
+                # includeHTML("./www/AboutExceedances.Rhtml")
+                tags$iframe(src = "AboutExceedances.html",
+                            width = "100%",
+                            height = "600px",
+                            style = "border:none;")
     )
   ))
 
@@ -4269,6 +4280,8 @@ shinyServer(function(input, output, session){
       leaflet::clearGroup("NPS") %>%
       leaflet::addCircleMarkers(
         data = merge_data
+        ,lng = ~longitude
+        ,lat = ~latitude
         ,group = "NPS"
         ,layerId = merge_data$SiteCode
         ,fillColor = ~MapColors(merge_data$Acceptable/merge_data$Total)

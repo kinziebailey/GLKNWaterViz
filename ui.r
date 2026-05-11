@@ -260,7 +260,7 @@ column(
     ## Instructions Panel ####   
     tabPanel(
       h4("Instructions")
-      ,includeHTML("www/instructions.html")
+      ,suppressWarnings(includeHTML("www/instructions.html")) # tags$iframe() creates weird scroll
     ),
     ## Scatter Plot Panel ####
     tabPanel(
@@ -536,7 +536,7 @@ column(
     ## About Panel ####
     tabPanel(
       h4("About")
-      ,includeHTML("www/projectintro.html")
+      ,suppressWarnings(includeHTML("www/projectintro.html")) # tags$iframes creates weird scroll
     )
   )
 )
