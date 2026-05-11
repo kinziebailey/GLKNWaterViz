@@ -1025,7 +1025,7 @@ shinyServer(function(input, output, session){
   observeEvent(input$AboutComparisons, showModal(
     modalDialog(title="About Boxplot Graphs", footer=tagAppendAttributes( modalButton(tags$div("Close")), class="btn btn-primary"),
                 # includeHTML("./www/AboutComparisons.html")
-                tags$iframe(src = "AboutComparisions.html",
+                tags$iframe(src = "AboutComparisons.html",
                             width = "100%",
                             height = "600px",
                             style = "border:none;")
