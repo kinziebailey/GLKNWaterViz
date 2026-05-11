@@ -219,8 +219,10 @@ shinyUI(
     
 # LEFT COLUMN ####
   ## Map ####
-  fluidRow(
-    column(
+  # fluidRow(
+  sidebarLayout(
+    sidebarPanel(
+    # column(
       width = 3,
       # style = "margin-left: 30xp;",
       div(
@@ -253,7 +255,8 @@ shinyUI(
 # RIGHT COLUMN ####
 #mainPanel(
 # tabsetPanel(
-column(
+mainPanel(
+# column(
   width = 9,
   
   tabsetPanel(
@@ -536,7 +539,7 @@ column(
     ## About Panel ####
     tabPanel(
       h4("About")
-      ,suppressWarnings(includeHTML("www/projectintro.html")) # tags$iframes creates weird scroll
+      ,suppressWarnings(includeHTML("www/projectintro.html")) # tags$iframes creates weird
     )
   )
 )
