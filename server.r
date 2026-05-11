@@ -402,6 +402,78 @@ shinyServer(function(input, output, session){
   #   SummaryDepth()
   #   ,DataOpts$Depth<-SummaryDepth()
   # )
+  
+  #### Depth Profile Controls ####
+  # callModule tells the conditional picklists to update
+  # e.g., input$TimeSite should only show sites that correspond to the value of input$TimePark
+  # and, since `chosen` is always the DataOpts value, the picklist of one tab (e.g., Summary) is synced with all other tabs
+  ##### Park ####
+  ProfilePark<-shiny::callModule(
+    parkChooser
+    ,id="ProfilePark"
+    ,data=WaterData
+    ,chosen=reactive(DataOpts$Park)
+  )
+  ##### Site ####
+  ProfileSite<-shiny::callModule(
+    siteChooser
+    ,id="ProfileSite"
+    ,data=WaterData
+    ,park=reactive(DataOpts$Park)
+    ,chosen=reactive(DataOpts$Site)
+  )
+  ##### Param ####
+  ProfileParam<-shiny::callModule(
+    paramChooser
+    ,id="ProfileParam"
+    ,data=WaterData
+    ,park=reactive(DataOpts$Park)
+    ,site=reactive(DataOpts$Site)
+    ,chosen=reactive(DataOpts$Param)
+  )
+  ##### Years ####
+  ProfileYears<-shiny::callModule(
+    yearChooser
+    ,id="ProfileYears"
+    ,data=DataUse
+    ,chosen=reactive(DataOpts$Years)
+  )
+  # observeEvent resets the values of conditional picklists to their starting point so downstream code (e.g., data()) won't error
+  # when the input specified in the function updates it triggers one or more values to update
+  # e.g., when input$ProfilePark changes in the app, it updates DataOpts$Park, DataOpts$Site, DataOpts$Param, and DataOpts$Years
+  #### Pick list controls ####
+  ##### Park ####
+  shiny::observeEvent(
+    ProfilePark()
+    ,{
+      DataOpts$Park<-ProfilePark()
+      ;DataOpts$Site<-NA
+      # ;DataOpts$Param<-NA
+      # ;DataOpts$Years<-c(1900,2100)
+    }
+  )
+  ##### Site ####
+  shiny::observeEvent(
+    ProfileSite()
+    ,{
+      DataOpts$Site<-ProfileSite()
+      # ;DataOpts$Param<-NA
+      # ;DataOpts$Years<-c(1900,2100)
+    }
+  )
+  ##### Param ####
+  shiny::observeEvent(
+    ProfileParam()
+    ,{
+      DataOpts$Param<-ProfileParam()
+      # ;DataOpts$Years<-c(1900,2100)
+    }
+  )
+  ##### Years ####
+  shiny::observeEvent(
+    ProfileYears()
+    ,DataOpts$Years<-ProfileYears()
+  )
   ### Boxplot Controls ####
   ##### Park ####
   BoxPark<-shiny::callModule(
@@ -1020,6 +1092,18 @@ shinyServer(function(input, output, session){
                             style = "border:none;")
     )
   ))
+  
+  ##### Profile Plot ####
+  observeEvent(input$AboutProfilePlot, showModal(
+    modalDialog(title="About Depth Profile Plot", footer=tagAppendAttributes( modalButton(tags$div("Close")), class="btn btn-primary"),
+                # includeHTML("./www/AboutScatterPlot.html")
+                tags$iframe(src = "AboutProfilePlot.html",
+                            width = "100%",
+                            height = "600px",
+                            style = "border:none;")
+    )
+  ))
+  
 
   ##### Box Plots ####
   observeEvent(input$AboutComparisons, showModal(
@@ -2309,6 +2393,282 @@ shinyServer(function(input, output, session){
   })
 
   output$CorrPlot <- renderPlotly({   MakeCorrPlot() })
+  
+  #### Profile Plot ####
+  ## NEED TO EDIT THE INFO ##
+  MakeProfilePlot <- reactive({
+    # A reactive function that returns a plotly scatterplot of the depth profile.
+    # Args:
+    #  DataOpts$Years, c(int), required. The character string provided by yearChooser() in global.R.
+    #  DataOpts$Park, chr, required. A park acronym. E.g., 'ROCR'.
+    #  DataOpts$Site, chr or c(chr), required. A site code. E.g., 'NCRN_ROCR_KLVA'
+    #  DataOpts$Param, chr, required. A characteristic abbreviation. E.g., 'DOper'.
+    #  DataOpts$Depth, num, required. A depth measurement. E.g. '-0.2 m'.
+    #
+    # Returns:
+    #  Plotly figure
+    #
+    # Example:
+    #   DataOpts$Years <- c(2010,2024),
+    #   DataOpts$Park <- 'ROCR'
+    #   DataOpts$Site <- c('NCRN_ROCR_KLVA', 'NCRN_ROCR_FEBR')
+    #   DataOpts$Param <- 'DOper'
+    #   DataOpts$Depth <- c(-2,0)
+    #
+    #   myfigure <- CorrPlotOutMultiple(
+    #     DataOpts$Years
+    #     ,input$SummaryBoxBy
+    #     ,input$SeriesThreshLine
+    #     ,DataOpts$Park
+    #     ,DataOpts$Site
+    #     ,DataOpts$Param
+    #     ,DataOpts$Param2
+    #   )
+    #
+    req(DataOpts$Park, DataOpts$Site, DataOpts$Param)
+
+    ##### DF ####
+    profile_df <- DataUseMultiple() %>%
+      filter(Year >= DataOpts$Years[1],
+             Year <= DataOpts$Years[2]) %>%
+      # group_by(MonitoringLocationName, Date) %>%
+      # summarise(Value = mean(Value, na.rm = TRUE),
+      #           .groups = "drop") %>%
+      dplyr::arrange(MonitoringLocationName, Date)
+    
+    #### Initialize variables ####
+    xnames <- c()
+    yname <- NA
+    labels <- NA
+    # assessment <- input$SeriesThreshLine
+    # assessments <- c()
+    # threshold <- NA
+    # references <- c()
+    units <- c()
+    displaynames <- c()
+    
+    #### Site ####
+    for (site in DataOpts$Site){
+      displayname <- getCharInfo(
+        object = WaterData
+        ,parkcode = DataOpts$Park
+        ,sitecode = site
+        ,charname = DataOpts$Param
+        , info="DisplayName"
+      )
+      #### Units ####
+      displaynames <- c(displaynames, displayname)
+      unit <- getCharInfo(
+        object = WaterData
+        ,parkcode = DataOpts$Park
+        ,sitecode = site
+        ,charname = DataOpts$Param
+        ,info = "Units"
+      )
+      
+      units <- c(units, unit)
+      xname <- paste0(displayname," (", unit,")")
+      xnames <- c(xname, xnames)
+    }
+    
+    units <- units %>% unique
+    displaynames <- displaynames %>% unique
+    
+    # resolve conflicts that would happen if the metadata file was messed up
+    # e.g., if one characteristic had multiple units
+    n_xnames <- length(xnames %>% unique)
+    if (n_xnames == 1){
+      xname <- xnames %>% unique
+    } else if (n_xnames == 0){
+      xname <- ''
+    } else {
+      xname <- xnames[1]
+    }
+    
+    yname <- 'Depth'
+    
+    ##### thresholds #####
+    # if(assessment){
+    #   for (site in DataOpts$Site){
+    #     tmp <- c(getCharInfo(object = WaterData,
+    #                          parkcode = DataOpts$Park,
+    #                          sitecode = site,
+    #                          charname = DataOpts$Param,
+    #                          info="LowerPoint"),
+    #              getCharInfo(object = WaterData,
+    #                          parkcode = DataOpts$Park,
+    #                          sitecode = site,
+    #                          charname = DataOpts$Param,
+    #                          info="UpperPoint")) %>%
+    #       unlist %>% unique
+    # 
+    #     assessments <- c(tmp, assessments)
+    # 
+    #     tmp2 <- c(getCharInfo(object = WaterData,
+    #                           parkcode = DataOpts$Park,
+    #                           sitecode = site,
+    #                           charname = DataOpts$Param,
+    #                           info = "AssessmentDetails"),
+    #               getCharInfo(object = WaterData,
+    #                           parkcode = DataOpts$Park,
+    #                           sitecode = site,
+    #                           charname = DataOpts$Param,
+    #                           info = "AssessmentDetails")) %>%
+    #       unlist %>% unique
+    #     references <- c(tmp2, references)
+    #   }
+    #   threshold <- assessments %>% unique
+    #   threshold <- threshold[!is.na(threshold)] # needed if there is no upper or lower threshold.
+    # 
+    #   reference <- references %>% unique
+    #   reference <- reference[!is.na(reference)] # needed if there is no upper or lower threshold.
+    # }
+    
+    # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L106-L127
+    ##### setting NA info ####
+    n_not_na <- nrow(profile_df %>% dplyr::filter(is.na(Value)==F))
+    n_na <- nrow(profile_df %>% dplyr::filter(is.na(Value)))
+    title <- paste0(NCRNWater::getParkInfo(object = WaterData,
+                                           parkcode = DataOpts$Park,
+                                           info = "ParkLongName"), ': ',
+                    xname, '\nYears: ',
+                    DataOpts$Years[1], '-',
+                    DataOpts$Years[2],'; Total measurements: ',
+                    n_not_na+n_na,' (non-NA: ', n_not_na, ', NA: ',
+                    n_na,')')
+    
+    m <- list( # figure margins
+      l = 100,
+      r = 50,
+      b = 100,
+      t = 100,
+      pad = 20
+    )
+    ## Plot ####
+    baseplot <-
+      plotly::plot_ly(
+        profile_df
+        ,type = 'scatter'
+        ,mode = 'markers'
+        ,x = ~Value
+        ,y = ~as.numeric(ActivityDepthHeightMeasure.MeasureValue)
+        ,color = ~MonitoringLocationName
+        ,symbol = ~MonitoringLocationName
+        ,customdata = profile_df$MonitoringLocationName
+        ,marker = list(
+          size = GraphOpts$PointSize
+          ,opacity = as.numeric(GraphOpts$ShowHidePoint)
+        )
+        ,hovertemplate = paste0(
+          "Depth: %{y}"
+          ,"<br>Site: %{customdata}"
+          ,"<br>", xname, ": %{x}"
+          ,'<extra></extra>'
+        )
+      ) %>%
+        layout(title = list(text = title),
+               xaxis = list(title = xname),
+               yaxis = list(title = "Depth"),
+               hovermode = "closest",
+               legend = list(title =list(text = "Site")))
+   
+    ## Remove? ---- 
+  #   if (assessment == T & identical(threshold, numeric(0)) == F) {
+  #     # a <- list( # commented-out because the annotation doesn't look great
+  #     #   x = 1,
+  #     #   y = 0.95*threshold,
+  #     #   text = paste0(stringr::str_split_1(yname, '[(]')[1], 'threshold: ', threshold, ' ', stringr::str_extract(yname, '(?<=\\()[^\\^\\)]+')),
+  #     #   xref = "x",
+  #     #   yref = "y",
+  #     #   showarrow = F,
+  #     #   ax = 20,
+  #     #   ay = -40
+  #     # )
+  #     ##### WQ Threshold ####
+  #     if (length(threshold) == 2){
+  #       baseplot %>% add_trace(
+  #         name = 'Water Quality Threshold'
+  #         ,x = ~ActivityDepthHeightMeasure.MeasureValue
+  #         ,y = threshold[1]
+  #         ,mode = "lines"
+  #         # ,hoverinfo="text"
+  #         # ,text="hello"
+  #         ,hovertemplate = paste0(
+  #           "<br>Water Quality Threshold"
+  #           ,"<br>", yname, ": ", threshold[1]
+  #           # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[1]}
+  #           # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+  #           # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+  #           ,'<extra></extra>'
+  #         )
+  #         ,text = NULL
+  #         ,line = list(width = GraphOpts$LineWidth,
+  #                      dash = 'dash',
+  #                      color = GraphOpts$ThColor)
+  #       ) %>% add_trace(
+  #         name = 'Water Quality Threshold'
+  #         ,x = ~ActivityDepthHeightMeasure.MeasureValue
+  #         ,y = threshold[2]
+  #         ,mode = "lines"
+  #         # ,hoverinfo="text"
+  #         # ,text="hello"
+  #         ,hovertemplate = paste0(
+  #           "<br>Water Quality Threshold"
+  #           ,"<br>", xname, ": ", threshold[2]
+  #           # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[2]}
+  #           # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+  #           # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+  #           ,'<extra></extra>'
+  #         )
+  #         ,text = NULL
+  #         # ,color = GraphOpts$ThColor
+  #         ,line = list(width = GraphOpts$LineWidth,
+  #                      dash = 'dash',
+  #                      color = GraphOpts$ThColor)
+  #       )
+  #       #   baseplot %>% layout(
+  #       #   shapes = list(
+  #       #     hline(threshold[1])
+  #       #     ,hline(threshold[2])
+  #       #     )
+  #       #   # ,annotations = a # commented-out because the annotation doesn't look great
+  #       # )
+  #       
+  #     } else if (length(threshold) == 1){
+  #       baseplot %>% add_trace(
+  #         name = 'Water Quality Threshold'
+  #         ,x = ~ActivityDepthHeightMeasure.MeasureValue
+  #         ,y = threshold
+  #         ,mode = "lines"
+  #         # ,hoverinfo="text"
+  #         # ,text="hello"
+  #         ,hovertemplate = paste0(
+  #           "<br>Water Quality Threshold"
+  #           ,"<br>", xname, ": ", threshold
+  #           # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[2]}
+  #           # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+  #           # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+  #           ,'<extra></extra>'
+  #         )
+  #         ,text = NULL
+  #         # ,color = GraphOpts$ThColor
+  #         ,line = list(width = GraphOpts$LineWidth,
+  #                      dash = 'dash',
+  #                      color = GraphOpts$ThColor)
+  #       )
+  #       # baseplot %>% layout(
+  #       #   shapes = list(hline(threshold))
+  #       # # ,annotations = a # commented-out because the annotation doesn't look great
+  #       # )
+  #     }
+  #   } else {
+  #     baseplot
+  #   }
+  })
+  
+    ## Plot ----
+  output$ProfilePlot <- renderPlotly({   MakeProfilePlot() })
+  
 
   #### Threshold values ####
   hline <- function(y = 0, color = "red", dash = 'dash', size=1) {

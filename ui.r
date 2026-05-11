@@ -252,9 +252,6 @@ shinyUI(
     ),
     
 # RIGHT COLUMN ####
-# RIGHT COLUMN ####
-#mainPanel(
-# tabsetPanel(
 mainPanel(
 # column(
   width = 9,
@@ -333,7 +330,35 @@ mainPanel(
         column(width=12, plotlyOutput("SeriesPlot"))
       )
     ),  
-    
+   
+    ## Profile Panel ####
+    tabPanel(
+      h4("Depth Profiles")
+      ,div(
+        style='padding: 5px 10px'
+        ,class="panel panel-default"
+        ,fluidRow(
+          column(width=4, parkChooserUI("ProfilePark"))
+          ,column(width=4, siteChooserUI("ProfileSite"))
+          ,column(width=4, paramChooserUI("ProfileParam"))
+        )
+        ,fluidRow(
+          column(width=4, yearChooserUI("ProfileYears"))
+          ,column(width=2,checkboxInput("ShowHidePoint", "Show points", TRUE))
+          # ,column(width=2, checkboxInput("SeriesThreshLine", "Show Water Quality Threshold Line", TRUE))
+          ,column(width=2, actionButton(inputId="GraphicsModal2", label='Graphics Options', class="btn btn-primary", style="margin-top: 15px"))
+          ,column(width=2, actionButton(inputId="AboutProfilePlot", label="About this Graph...", class="btn btn-primary", style="margin-top: 15px"))
+        )
+        # ,fluidRow(
+        #   column(width=7)
+        #   ,column(width=5, htmlOutput("SeriesThresholdSummaryMultiple"))
+        # )
+      )
+      ,fluidRow(
+        column(width=12, plotlyOutput("ProfilePlot"))
+      )
+    ),  
+     
     ## Boxplot ####
     tabPanel(
       h4("Boxplot")
