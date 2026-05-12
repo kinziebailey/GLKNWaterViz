@@ -5,16 +5,24 @@
 
 <hr style="margin: 10px 40px;">
 <h3 style="margin: 10px 40px;">Introduction</h3>
-<p style="margin: 10px 40px;"><a href="https://www.nps.gov/aboutus/index.htm#:~:text=Follow%20Us-,Our%20Mission,of%20this%20and%20future%20generations.">The National Park Service preserves unimpaired the natural and cultural resources and values of the National Park System</a>. The Great Lakes Region Inventory and Monitoring Network (GLKN) is part of the <a href="https://www.nps.gov/im/index.htm">National Park Service Inventory and Monitoring Division</a>, which conducts science in National Parks. <a href="https://www.nps.gov/im/ncrn/index.htm">GLKN conducts science, like water quality monitoring, in the National Park Service's Great Lakes Region</a>, which extends from the boreal forests of northern Minnesota to the sand dunes of southern Lake Michigan, and includes 72 miles of the Mississippi River and more than 200 miles of the St. Croix and Namekagon Rivers. Despite the network's Great Lakes designation, these parks fall into three watersheds: the Arctic Ocean, the Great Lakes, and the Mississippi River/Gulf of Mexico.</p>
+<p style="margin: 10px 40px;">The Great Lakes Region Inventory and Monitoring Network <a href="https://www.nps.gov/im/glkn/index.htm">(GLKN)</a> is part of the National Parks Service (NPS) Inventory and Monitoring Division. GLKN conducts long-term ecological monitoring in the following parks: Apostle Islands National Lakeshore, Grand Portage National Monument, Indiana Dunes National Lakeshore, Isle Royale National Park, Mississippi National river and Recreation Area, Pictured Rocks National Lakeshore, Sleeping Bear Dunes National Lakeshore, St. Croix National scenic Riverway, and Voyageurs National Park. This program is designed to provide park managers with status and trends data on vital signs that represent the health of natural resources in the above stated parks.<br><br>
 
 <hr style="margin: 10px 40px;" style="margin: 10px 40px;">
 
 <h3 style="margin: 10px 40px;">Instructions </h3>
-<p style="margin: 10px 40px;">This visualizer tool allows users to explore and analyze water quality data. It uses data published on the <br><a href="https://www.waterqualitydata.us/">USGS Water Quality Portal</a>
+<p style="margin: 10px 40px;">This visualizer tool allows users to explore and analyze water quality data. It uses data published on the <br><a href="https://www.waterqualitydata.us/">USGS Water Quality Portal</a>.
 <br><br>
-To use this visualizer, INSTRUCTIONS HERE....
-<br><br>
-This visualizer tool operates using R Shiny code. A static copy of the application source code is available on NPS IRMA Data Store:<br>
+<p style="margin: 10px 40px;">This visualizer plots data collected by the GLKN. To run the visulizer, follow the steps below:</p>
+<ol style="margin: 10px 40px;">
+  <li>Select <strong>Park</strong> of interest</li>
+  <li>Select one or more <strong>Site</strong> of interest</li>
+  <li>Select a <strong>Parameter</strong> to plot</li>
+  <li>Select <strong>Years</strong> of interest</li>
+</ol>
+<br>
+<p style="margin: 10px 40px;">Each plot has a <strong>Graphics Options</strong>, an <strong>Abouth this Graph</strong>, and <strong>plot controls</strong>. The <strong>Graphics Options</strong> allow you to control the figure size, text and points sizes, line width, and threshold line color. The <strong>Abouth this Graph</strong> contains information about each figure created in the visualizer. </p>
+<br>
+<p style="margin: 10px 40px;">This visualizer tool operates using R Shiny code. A static copy of the application source code is available on NPS IRMA Data Store:<br>
 <a href="https://irma.nps.gov/DataStore/Reference/Profile/2313155">DataStore - National Capital Region Network Water Visualizer (R Shiny application)</a><br><br>
 The development version of the source code is available at:<br>
 <a href="https://github.com/NCRN/NCRNWaterViz/tree/ncrn_refactor">https://github.com/NCRN/NCRNWaterViz/tree/ncrn_refactor</a>
@@ -23,54 +31,36 @@ The development version of the source code is available at:<br>
 <hr style="margin: 10px 40px;">
 
 <h3 style="margin: 10px 40px;">Parameters</h3>
-<p style="margin: 10px 40px;">As of January 2025, NCRN monitors 15 numeric water quality parameters. NCRN also collects text and categorical data (e.g., epilithic algae color) which are present in <a href="https://irma.nps.gov/DataStore/Reference/Profile/2309154">the full dataset</a> but absent from this website. Over time, NCRN has added and removed parameters from its monitoring protocol. <a href="https://irma.nps.gov/DataStore/Reference/Profile/2313167">Table 5 in NCRN's Water Chemistry and Quantity Monitoring Protocol details changes to sampling parameters.</a> </p>
+<p style="margin: 10px 40px;">GLKN monitors the water quality of inland lakes in five parks: Apostle Islands National Lakeshore, Indiana Dunes National Park, Isle Royale National Park, Pictured Rocks National Lakeshore, Sleeping Bear Dunes National Lakeshore, and Voyageurs National Park. The montiroing protocol is available on NPS IRMA Data Store (<a href="https://irma.nps.gov/DataStore/Reference/Profile/2290010">GLKN Inland Lakes WQ Monitoring Protocol</a>). The key variables of interest measured for lakes are:</p>
 <ol style="margin: 10px 40px;">
-  <li>Water temperature</li>
-  <li>Air pressure (i.e. barometric pressure)</li>
-  <li>Dissolved Oxygen concentration (DO concentration mg/L)</li>
-  <li>Dissolved Oxygen saturation (DO saturation %)</li>
-  <li>Specific Conductance</li>
-  <li>Conductivity</li>
-  <li>Salinity</li>
+  <li>Temperature</li>
+  <li>Specific Electrical Conductivity (EC25 or SC25)</li>
   <li>pH</li>
-  <li>Acid Neutralizing Capacity (ANC)</li>
-  <li>Total Nitrogen concentration (TN)</li>
-  <li>Total Phosphorus concentration (TP)</li>
-  <li>Discharge</li>
-  <li>Wetted width (stream width across stream crossection where discharge was measured)</li>
-  <li>Stream Velocity (average water velocity across stream crossection where discharge was measured)</li>
-  <li>Depth (average water depth across stream crossection where discharge was measured)</li>
+  <li>Dissolved Oxygen (Concentration and % Saturation)</li>
+  <li>Lake Level</li>
+  <li>Water Clarity</li>
+  <li>Major Ions</li>
+  <li>Dissolved Silica (SiO<sub>2</sub>)</li>
+  <li>Dissolved Organic Carbon (DOC)</li>
+  <li>Nutrients</li>
+  <li>Chlorophyll-a</li>
 </ol>
 
-<hr style="margin: 10px 40px;">
-
-<h3 style="margin: 10px 40px;">Bibliography</h3>
-<h4 style="margin: 10px 40px;">References</h4>
-
-<p style="margin: 10px 40px;">Allan, J. D. 1995. Stream Ecology: Structure and Function of Running Waters. Chapman and Hall, New York.</p>
-<p style="margin: 10px 40px;"> District Department of the Environment. 2010. Notice of final rulemaking: triennial review of the District of Columbia's Water Quality Standards. Pages 009129-009160, Washington, DC.</p>
-<p style="margin: 10px 40px;">EPA. 2000a. Ambient Water Quality Criteria Recommendations: Information Supporting the Development of State and Tribal Nutrient Criteria for Rivers and Streams in Nutrient Ecoregion IX. EPA 822-B-00-019, US Environmental Protection Agency, Washington, DC.</p>
-<p style="margin: 10px 40px;">Heinz Center. 2002. The state of the Nation's ecosystems: Measuring the lands, waters, and living Resources of the United States.</p>
-<p style="margin: 10px 40px;">Morgan, R. P., K. M. Kline, and S. F. Cushman. 2007. Relationships among nutrients, chloride and biological indices in urban Maryland streams. Urban Ecosystesm 10:153-166.</p>
-<p style="margin: 10px 40px;">State of Maryland. 2010. Title 26 Department of the Environment, Subtitle 08 Water Pollution, Chapter 02 Water Quality, Authority: Environment Article, 9-303.1, 9-313-9-316, 9-319, 9-320-9-325, 9-327, and 9-328, Annotated Code of Maryland, The State of Maryland, editor. 26.08.02. The State of Maryland, Annapolis, MD.</p>
-<p style="margin: 10px 40px;">State of West Virginia. 2011. Title 47 Legislative rule, Department of Environmental Protection, Water Resources, Series 2: Requirements governing water quality standards.</p>
-<p style="margin: 10px 40px;">Stednick, J. D. and D. M. Gilbert. 1998. Water quality inventory protocol: riverine environments. NPS/NRWRD/NRTR-98/177, National Park Service, Servicewide Inventory and Monitoring Program, Fort Collins, CO.</p>
-<p style="margin: 10px 40px;">U.S. Geological Survey. 1980. Surfacewater. page 130, U.S. Geological Survey, editor. National handbook of recommended methods for water-data acquisition. U.S. Geological Survey.</p>
-<p style="margin: 10px 40px;">Virginia State Water Control Board. 2011. Virginia Water Quality Standards. State of Virginia, editor. 9 VAC 25-260.</p>
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/App/Reference/DownloadDigitalFile?code=152511&file=MONO_WRSR_final_pdf">Weeks, D., D. Vana-Miller, M. Norris, and A. Banasik. 2007. Water Resources Stewardship Report: Monocacy National Battlefield. National Park Service, Fort Collins, CO.</a></p>
-
-<h4 style="margin: 10px 40px;">NCRN Water Quality Reports</h4>
-
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/DataStore/Reference/Profile/2233434">Weaver J and Nortrup M. 2016. National Capital Region Network Resource Brief: Specific Conductance in Streams. National Capital Region Network, Inventory & Monitoring https://irma.nps.gov/DataStore/Reference/Profile/2233434</a></p>
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/DataStore/Reference/Profile/2210069">Nortrup M. 2014. National Capital Region Network Resource Brief: Water Monitoring. National Capital Region Network, Inventory & Monitoring https://irma.nps.gov/DataStore/Reference/Profile/2210069</a></p>
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/DataStore/Reference/Profile/2190400">Pieper JM and Others. 2012. National Capital Region Network FY 2010 water resources monitoring data report:: water chemistry, nutrient dynamics, and surface water dynamics vital signs. Natural Resource Data Series. NPS/NCRN/NRDS—2012/381. National Park Service. Fort Collins, Colorado https://irma.nps.gov/DataStore/Reference/Profile/2190400</a></p>
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/DataStore/Reference/Profile/2175663">Schmit JP. 2011. Annual and seasonal trends in discharge of National Capital Region streams. Natural Resource Technical Report: Northeast Region. NPS/NCRN/NRTR—2011/488. Fort Collins, Colorado https://irma.nps.gov/DataStore/Reference/Profile/2175663</a></p>
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/DataStore/Reference/Profile/2166098">Norris M and Pieper J. 2010. National Capital Region Network 2007- 2008 water resources monitoring data report: Water chemistry, nutrient dynamics, and surface water dynamics vital signs. Natural Resource Data Series. NPS/NCR/NCRN/NRDS—2010/105. National Park Service, Natural Resource Program Center. Fort Collins, Colorado https://irma.nps.gov/DataStore/Reference/Profile/2166098</a></p>
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/DataStore/Reference/Profile/2188684">Nortrup M and Watts T. 2010. National Capital Region Network Resource Brief: Freshwater Sponges. National Capital Region Network, Inventory & Monitoring https://irma.nps.gov/DataStore/Reference/Profile/2188684</a></p>
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/DataStore/Reference/Profile/2165403">Norris M and Pieper J. 2010. National Capital Region Network 2009 water resources monitoring data report: water chemistry, nutrient dynamics, and surface water dynamics vital signs. Natural Resource Data Series. NPS/NCR/NCRN/NRDS—2010/095. Natural Resource Program Center. Fort Collins, Colorado https://irma.nps.gov/DataStore/Reference/Profile/2165403</a></p>
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/DataStore/Reference/Profile/2188734">Norris M. 2009. National Capital Region Network Resource Brief: Water Monitoring Program. National Capital Region Network, Inventory & Monitoring https://irma.nps.gov/DataStore/Reference/Profile/2188734</a></p>
-<p style="margin: 10px 40px;"><a href="https://irma.nps.gov/DataStore/Reference/Profile/652224">Norris M and Others. 2007. National Capital Region Network 2005 - 2006 Water Resources Monitoring Report. Natural Resource Technical Report. NPS/NCRN/NRTR—2007/066. Natural Resource Program Center. Fort Collins, Colorado https://irma.nps.gov/DataStore/Reference/Profile/652224</a></p>
-
+<p style="margin: 10px 40px;">GLKN additionally mesures water quality for large rivers at St. Croix National Scenic Riverway. The montiroing protocol is available on NPS IRMA Data Store (<a href="https://irma.nps.gov/DataStore/Reference/Profile/2230812">GLKN Large River WQ Monitoring Protocol</a>). The key variables of interest measured for rivers are:</p>
+<ol style="margin: 10px 40px;">
+  <li>Temperature</li>
+  <li>Specific Electrical Conductivity (EC25 or SC25)</li>
+  <li>pH</li>
+  <li>Dissolved Oxygen (Concentration and % Saturation)</li>
+  <li>Flow</li>
+  <li>Turbidity</li>
+  <li>Nutrients</li>
+  <li>Chlorophyll-a</li>
+  <li>Major Ions</li>
+  <li>Dissolved Silica (SiO<sub>2</sub>)</li>
+  <li>Dissolved Organic Carbon (DOC)</li>
+  <li>Water Clarity</li>
+</ol>
 <hr style="margin: 10px 40px;">
 
 </body>
