@@ -564,7 +564,7 @@ mainPanel(
     ## About Panel ####
     tabPanel(
       h4("About")
-      ,suppressWarnings(includeHTML("www/projectintro.html")) # tags$iframes creates weird
+      ,suppressWarnings(includeHTML("www/AboutDashboard.html")) # tags$iframes creates weird
     )
   )
 )

@@ -1,7 +1,7 @@
-# options(download.file.method = "wininet")
-# remotes::install_github('https://github.com/ncrn/ncrnwater',
-#                         dependencies = FALSE,
-#                         force = TRUE)
+options(download.file.method = "wininet")
+remotes::install_github('https://github.com/NCRN/NCRNWater.git',
+                        dependencies = FALSE,
+                        force = TRUE)
 library(shiny)
 library(lattice)
 library(dplyr)
@@ -285,8 +285,6 @@ shinyServer(function(input, output, session){
     ,{
       DataOpts$Park<-TimePark()
       ;DataOpts$Site<-NA
-      # ;DataOpts$Param<-NA
-      # ;DataOpts$Years<-c(1900,2100)
     }
   )
   ##### Site ####
@@ -303,7 +301,6 @@ shinyServer(function(input, output, session){
     TimeParam()
     ,{
       DataOpts$Param<-TimeParam()
-      # ;DataOpts$Years<-c(1900,2100)
     }
   )
   ##### Years ####
