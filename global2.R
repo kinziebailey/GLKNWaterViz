@@ -1,0 +1,630 @@
+# Setup ----
+## Libraries ----
+# NCRNWater Package
+options(download.file.method = "wininet")
+remotes::install_github('https://github.com/NCRN/NCRNWater.git',
+                        dependencies = FALSE,
+                        force = TRUE)
+# Other
+library(shiny)
+library(lattice)
+library(dplyr)
+library(lubridate)
+library(NCRNWater)
+library(DT)
+library(htmltools)
+library(ggplot2)
+library(leaflet)
+library(jsonlite)
+library(purrr)
+library(magrittr)
+library(openair)
+library(NADA)
+library(plotly)
+
+# Specify the network
+Network <- "GLKN"
+Network_long <- "Great Lakes Network" # for navbar title
+Viz_name <- "Lake and Stream Water Quality"
+dataname <- "wqp_glkn.csv" # global variable instead of hardcoding in `server.R` NCRNWater::importNCRNWater() call
+
+## Getting Data ----
+dataname <- "wqp_glkn.csv"
+metadataname <- "MetaData.csv"
+wqx_bool <- T
+
+# NCRNWater formatting
+WaterData <- suppressWarnings(importNCRNWater(paste0("./Data/", Network),
+                                              Data = dataname,
+                                              MetaData = metadataname,
+                                              wqx = wqx_bool))
+
+
+GraphColors<-read.csv("colors.csv", header=T, as.is=T)
+
+# Needs updating
+DATASET_URL <- a("Click here to export the dataset from NPS DataStore\n", href="https://irma.nps.gov/DataStore/Reference/Profile/2309154")
+
+#### Years Module ####
+yearChooserUI <- function(id){
+  ns <- NS(id)
+  sliderInput(inputId = ns("YearsShow"),
+              label = "Years",
+              min = 2005,
+              max = 2024,
+              step = 1,
+              value = c(2005, 2024),
+              sep = "",
+              ticks = F)
+}
+
+
+yearChooser <- function(input, output, session, data, chosen)  {
+
+  observe({
+    req( data() )
+    if(class(data()$Date) == "Date"){
+
+      YrMax <- reactive(max(year(data()$Date), na.rm = T))
+      YrMin <- reactive(min(year(data()$Date), na.rm = T))
+
+      # debounce slows down the app to prevent infinite loops caused by the user changing
+      # variables faster than the app can respond
+      YrMax_debounce <- debounce(YrMax, 1000)
+      YrMin_debounce <- debounce(YrMin, 1000)
+
+      updateSliderInput(session, inputId = "YearsShow",
+                        min = YrMin_debounce(),
+                        max = YrMax_debounce(),
+                        value = chosen())
+    }
+  })
+
+  return(reactive(input$YearsShow))
+}
+
+yearChooserUI2 <- function(id){
+  ns <- NS(id)
+  sliderInput(inputId = ns("YearsShow2"),
+              label = "Years",
+              min = 2005,
+              max = 2024,
+              step = 1,
+              value = c(2005, 2024),
+              sep = "",
+              ticks = F)
+}
+
+yearChooser2 <- function(input, output, session, data, chosen)  {
+
+  observe({
+    req( data() )
+    if(class(data()$Date) == "Date"){
+
+      YrMax <- reactive(max(year(data()$Date), na.rm = T))
+      YrMin <- reactive(min(year(data()$Date), na.rm = T))
+
+      # debounce slows down the app to prevent infinite loops caused by the user changing
+      # variables faster than the app can respond
+      YrMax_debounce <- debounce(YrMax, 1000)
+      YrMin_debounce <- debounce(YrMin, 1000)
+
+      updateSliderInput(session, inputId = "YearsShow2",
+                        min = YrMin_debounce(),
+                        max = YrMax_debounce(),
+                        value = chosen())
+    }
+  })
+
+  return(reactive(input$YearsShow2))
+}
+
+#### Depth Module ####
+# depthChooserUI <- function(id){
+#
+#   # slider for year
+#   ns <- NS(id)
+#   sliderInput(inputId = ns("DepthShow"),
+#               label = "Depth",
+#               min = -0.2,
+#               max = 50,
+#               step = 1,
+#               value = c(-0.2, 50),
+#               sep = "",
+#               ticks = F)
+# }
+#
+#
+# depthChooser <- function(input, output, session, data, chosen)  {
+#
+#   observe({
+#     req( data() )
+#     if(is.numeric(data()$ActivityDepthHeightMeasure.MeasureValue)){
+#       DpMax <- reactive(max(data()$ActivityDepthHeightMeasure.MeasureValue, na.rm = T))
+#       DpMin <- reactive(min(data()$ActivityDepthHeightMeasure.MeasureValue, na.rm = T))
+#
+#       # debounce slows down the app to prevent infinite loops caused by the user changing
+#       # variables faster than the app can respond
+#       DpMax_debounce <- debounce(DpMax, 1000)
+#       DpMin_debounce <- debounce(DpMin, 1000)
+#
+#       updateSliderInput(session,
+#                         inputId = "DepthShow",
+#                         min = DpMin_debounce(),
+#                         max = DpMax_debounce(),
+#                         value = chosen())
+#     }
+#   })
+#
+#   return(reactive(input$DepthShow))
+# }
+
+# depthChooserUI2<-function(id){
+#
+#   ns<-NS(id)
+#   sliderInput(inputId = ns("DepthShow2"),
+#               label = "Depth",
+#               min = -0.2,
+#               max = 50,
+#               step = 1,
+#               value = c(-0.2, 50),
+#               sep = "",
+#               ticks = F)
+# }
+
+
+# depthChooser2 <- function(input, output, session, data, chosen)  {
+#
+#   observe({
+#     req( data() )
+#     if(class(data()$ActivityDepthHeightMeasure.MeasureValue) == "numeric"){
+#       DpMax <- reactive(max(data()$ActivityDepthHeightMeasure.MeasureValue, na.rm = T))
+#       DpMin <- reactive(min(data()$ActivityDepthHeightMeasure.MeasureValue, na.rm = T))
+#
+#       # debounce slows down the app to prevent infinite loops caused by the user changing
+#       # variables faster than the app can respond
+#       DpMax_debounce <- debounce(DpMax, 1000)
+#       DpMin_debounce <- debounce(DpMin, 1000)
+#
+#       updateSliderInput(session,
+#                         inputId = "DepthShow2",
+#                         min = DpMin_debounce(),
+#                         max = DpMax_debounce(),
+#                         value = chosen())
+#     }
+#   })
+#
+#   return(reactive(input$DepthShow2))
+# }
+
+#### Park Module ####
+
+parkChooserUI <- function(id){
+  ns <- NS(id)
+  selectizeInput(inputId = ns("ParkIn"),
+                 label = "Park",
+                 choices = NULL)
+}
+
+parkChooser <- function(input, output, session, data, chosen){
+  observe({updateSelectizeInput(session,
+                                "ParkIn",
+                                selected = chosen(),
+    choices = c("Choose a Park"="",
+                c(`names<-`(getParkInfo(data, info = "ParkCode"),
+                            getParkInfo(data, info = "ParkShortName"))))
+  )})
+
+  return(reactive(input$ParkIn))
+}
+
+parkChooserUI2 <- function(id){
+  ns <- NS(id)
+  selectizeInput(inputId = ns("ParkIn2"),
+                 label = "Park",
+                 choices = NULL)
+}
+
+parkChooser2 <- function(input, output, session, data, chosen){
+  observe({updateSelectizeInput(session,
+                                "ParkIn2",
+                                selected = chosen(),
+    choices=c("Choose a Park"="",
+              c(`names<-`(getParkInfo(data, info = "ParkCode"),
+                          getParkInfo(data, info = "ParkShortName"))))
+  )})
+
+  return(reactive(input$ParkIn2))
+}
+
+
+#### Site Module ####
+
+siteChooserUI <- function(id){
+  ns <- NS(id)
+  selectizeInput(inputId = ns("SiteIn"),
+                 label = "Site",
+                 choices = NULL,
+                 multiple = TRUE)
+}
+
+siteChooser <- function(input, output, session, data, park, chosen){
+    # debounce slows down the app to prevent infinite loops caused by the user changing
+    # variables faster than the app can respond
+   debouncedSiteIn <- shiny::debounce(reactive(input$SiteIn), 1000)
+
+   observe({
+     updateSelectizeInput(session,
+                          inputId = "SiteIn",
+                          selected = chosen(),
+                          choices = c("Choose a Site"="",
+                                      c("Select All" = "ALL",
+                                        setNames(getSiteInfo(data,
+                                                             parkcode = park(),
+                                                             info = "SiteCode"),
+                                                 getSiteInfo(data,
+                                                             parkcode = park(),
+                                                             info = "SiteName"))))
+     )
+   })
+
+  return(reactive({
+
+    if ("ALL" %in% debouncedSiteIn()){
+      getSiteInfo(data, parkcode = park(), info = "SiteCode")
+    } else {
+
+        debouncedSiteIn()
+    }
+    }))
+}
+
+siteChooserUI2 <- function(id){
+  ns <- NS(id)
+  selectizeInput(inputId = ns("SiteIn2"),
+                 label = "Site",
+                 choices = NULL,
+                 multiple = TRUE)
+}
+
+siteChooser2 <- function(input, output, session, data, park, chosen){
+    # debounce slows down the app to prevent infinite loops caused by the user changing
+    # variables faster than the app can respond
+    debouncedSiteIn2 <- shiny::debounce(reactive(input$SiteIn2), 1000)
+
+   observe({
+     updateSelectizeInput(session,
+                          inputId = "SiteIn2",
+                          selected = chosen(),
+                          choices = c("Choose a Site"="",
+                                      c("Select All" = "ALL",
+                                        setNames(getSiteInfo(data,
+                                                             parkcode = park(),
+                                                             info = "SiteCode"),
+                                                 getSiteInfo(data,
+                                                             parkcode = park(),
+                                                             info = "SiteName"))))
+     )
+   })
+  return(reactive({
+
+      if ("ALL" %in% debouncedSiteIn2()){
+          getSiteInfo(data, parkcode = park(), info = "SiteCode")
+      } else {
+          debouncedSiteIn2()
+      }
+    }))
+}
+
+### Parameter Module ####
+
+paramChooserUI <- function(id){
+  ns <- NS(id)
+  selectizeInput(inputId = ns("ParamIn"),
+                 label = "Parameter",
+                 choices = NULL)
+}
+
+paramChooser <- function(input, output, session, data, park, site, chosen){
+  PChoices <- reactive({
+    req(park())
+    Choice <- getCharInfo(data,
+                          parkcode = park(),
+                          info = "CharName")
+
+    ChoiceName <- paste0(getCharInfo(data,
+                                     parkcode = park(),
+                                     info = "DisplayName"), " (",
+                         getCharInfo(data,
+                                     parkcode = park(),
+                                     info = "Units") %>%
+                         iconv("","UTF-8"), ")")
+    if(isTruthy(Choice) & isTruthy(ChoiceName)) { names(Choice) <- ChoiceName }
+    return(Choice)
+   })
+
+  observeEvent(
+    updateSelectizeInput(session, inputId = "ParamIn", selected = chosen(),
+                         choices = c("Choose a Parameter"="",
+                                     as.list(sort(PChoices()))))
+)
+
+  return(reactive(input$ParamIn))
+}
+
+paramChooserUI2 <- function(id){
+  ns <- NS(id)
+  selectizeInput(inputId = ns("ParamIn2"),
+                 label = "Second Parameter",
+                 choices = NULL)
+}
+
+paramChooser2 <- function(input, output, session, data, park, site, chosen){
+  PChoices <- reactive({
+    req(park())
+    Choice <- getCharInfo(data,
+                          parkcode = park(),
+                          info = "CharName")
+
+    ChoiceName <- paste0(getCharInfo(data,
+                                     parkcode = park(),
+                                     info = "DisplayName"), " (",
+                         getCharInfo(data,
+                                     parkcode = park(),
+                                     info = "Units") %>%
+                           iconv("","UTF-8"), ")")
+    if(isTruthy(Choice) & isTruthy(ChoiceName)) { names(Choice) <- ChoiceName }
+    return(Choice)
+   })
+
+  observe(
+    updateSelectizeInput(session,
+                         inputId = "ParamIn2",
+                         selected = chosen(),
+                         choices = c("Choose a Parameter"="",
+                                     as.list(sort(PChoices()))))
+  )
+
+  return(reactive(input$ParamIn2))
+}
+
+### Site Visit Module ####
+
+siteVisitChooserUI <- function(id){
+  ns <- NS(id)
+  selectizeInput(inputId = ns("siteVisitIn"),
+                 label = "Site visit",
+                 choices = NULL)
+}
+
+siteVisitChooser <- function(input, output, session, data, park, site, years, imgs, chosen){
+  PChoices <- reactive({
+    req(park(), site(), years())
+    park <- park()
+    sites <- site()
+    years <- years()
+    imgs <- imgs()
+
+    sitevisits <- c()
+    if (park %in% names(imgs)){
+      for (site in sites){
+        if (site %in% names(imgs[[park]])){
+          for (yr in names(imgs[[park]][[site]])){
+            if (as.numeric(yr) >= as.numeric(years[1]) & as.numeric(yr) <= as.numeric(years[2])){
+              for (sitevisit in names(imgs[[park]][[site]][[yr]])){
+                sitevisits <- c(sitevisits, sitevisit)
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return(sitevisits)
+   })
+
+  observe(
+    updateSelectizeInput(session,
+                         inputId = "siteVisitIn",
+                         selected = chosen(),
+                         choices = c("Choose a site visit"="",
+                                     as.list(sort(PChoices(), decreasing = T))))
+  )
+
+  return(reactive(input$siteVisitIn))
+}
+
+siteVisitChooserUI2 <- function(id){
+  ns <- NS(id)
+  selectizeInput(inputId = ns("siteVisitIn2"),
+                 label = "Site visit",
+                 choices = NULL)
+}
+
+siteVisitChooser2 <- function(input, output, session, data, park, site, years, imgs, chosen){
+  PChoices <- reactive({
+    req(park(), site(), years())
+    park <- park()
+    sites <- site()
+    years <- years()
+    imgs <- imgs()
+
+    sitevisits <- c()
+    if (park %in% names(imgs)){
+      for (site in sites){
+        if (site %in% names(imgs[[park]])){
+          for (yr in names(imgs[[park]][[site]])){
+            if (as.numeric(yr) >= as.numeric(years[1]) & as.numeric(yr) <= as.numeric(years[2])){
+              for (sitevisit in names(imgs[[park]][[site]][[yr]])){
+                sitevisits <- c(sitevisits, sitevisit)
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return(sitevisits)
+   })
+
+  observe(
+    updateSelectizeInput(session,
+                         inputId = "siteVisitIn2",
+                         selected = chosen(),
+                         choices = c("Choose a site visit"="",
+                                     as.list(sort(PChoices(), decreasing = T))))
+  )
+
+  return(reactive(input$siteVisitIn2))
+}
+
+#### Photo module ####
+photoChooserUI <- function(id){
+  ns <- NS(id)
+  sliderInput(inputId = ns("PhotoPhoto"),
+              label = "Photo",
+              min = 1,
+              max = 8,
+              value = 1,
+              ticks=F)
+}
+
+photoChooser <- function(input, output, session, data, park, site, years, imgs, sitevisit){
+  PhotoChoices <- reactive({
+    req(park(), site(), years(), imgs(), sitevisit())
+    park <- park()
+    sites <- site()
+    years <- years()
+    imgs <- imgs()
+    sitevisit <- sitevisit()
+
+    filenames <- c()
+    if (park %in% names(imgs)){
+      for (site in sites){
+        if (site %in% names(imgs[[park]])){
+          for (yr in names(imgs[[park]][[site]])){
+            if (as.numeric(yr) >= as.numeric(years[1]) & as.numeric(yr) <= as.numeric(years[2])){
+              for (visit in names(imgs[[park]][[site]][[yr]])){
+                if (visit == sitevisit){
+                  for (f in names(imgs[[park]][[site]][[yr]][[sitevisit]])){
+                    fname <- imgs[[park]][[site]][[yr]][[sitevisit]][[f]]$rel_fpath
+                    filenames <- c(filenames, fname)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return(filenames)
+   })
+
+  observe(
+    updateSliderInput(session,
+                      inputId = "PhotoPhoto",
+                      min = 1,
+                      max = length(PhotoChoices()))
+  )
+
+  return(reactive(input$PhotoPhoto))
+}
+
+photoChooserUI2 <- function(id){
+  ns <- NS(id)
+  sliderInput(inputId = ns("PhotoPhoto2"),
+              label = "Photo",
+              min = 1,
+              max = 8,
+              value = 1,
+              ticks = F)
+}
+
+photoChooser2 <- function(input, output, session, data, park, site, years, imgs, sitevisit){
+  PhotoChoices <- reactive({
+    req(park(), site(), years(), imgs(), sitevisit())
+    park <- park()
+    sites <- site()
+    years <- years()
+    imgs <- imgs()
+    sitevisit <- sitevisit()
+
+    filenames <- c()
+    if (park %in% names(imgs)){
+      for (site in sites){
+        if (site %in% names(imgs[[park]])){
+          for (yr in names(imgs[[park]][[site]])){
+            if (as.numeric(yr) >= as.numeric(years[1]) & as.numeric(yr) <= as.numeric(years[2])){
+              for (visit in names(imgs[[park]][[site]][[yr]])){
+                if (visit == sitevisit){
+                  for (f in names(imgs[[park]][[site]][[yr]][[sitevisit]])){
+                    fname <- imgs[[park]][[site]][[yr]][[sitevisit]][[f]]$rel_fpath
+                    filenames <- c(filenames, fname)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return(filenames)
+   })
+
+  observe(
+    updateSliderInput(session,
+                      inputId = "PhotoPhoto2",
+                      min = 1,
+                      max = length(PhotoChoices()))
+  )
+
+  return(reactive(input$PhotoPhoto2))
+}
+
+#### Facts and images for loading screen ####
+
+# This will need to be updated
+LOADING_TEXT <- c(
+  "Loading application..."
+  ,"Loading application..."
+  ,"Loading application..."
+)
+
+LOADING_IMAGES <- list(
+    list(src= "dwq_NCRN_ANTI_SHCK_2024-06-04_20240604-131442.jpg",
+         location = "Antietam National Battlefield, Sharpsburg Creek", date = "June 4, 2024")
+    ,list(src= "dwq_NCRN_MONO_BUCK_2024-06-04_20240604-084406.jpg",
+          location = "Monocacy National Battlefield, Bush Creek", date = "June 4, 2024")
+    ,list(src= "dwq_NCRN_PRWI_BONE_2024-06-11_20240611-130821.jpg",
+          location = "Prince William Forest Park, Boneyard Run", date = "June 11, 2024")
+)
+
+#### Map Module ####
+#
+# mapChooserUI<-function(id){
+#   ns<-NS(id)
+#   selectizeInput(inputId=ns("MapIn"),label="Select Parks:" , choices=NULL, multiple = TRUE, selected = NULL)
+# }
+#
+# mapChooser<-function(input,output,session, data, park, chosen){
+#   observe({updateSelectizeInput(session, "MapIn", selected=chosen(),
+#                                 choices=c("Choose a Park"="", c(`names<-`(getParkInfo(data, info="ParkCode"), getParkInfo(data, info="ParkShortName"))))
+#   )})
+#   return(reactive(input$MapIn))
+# }
+
+
+# mapChooserUI<-function(id){
+#   ns<-NS(id)
+#   checkboxGroupInput(inputId=ns("MapIn"),label="Select Parks:" , choices=NULL, inline = TRUE)
+# }
+#
+# mapChooser<-function(input,output,session, data, park, chosen){
+#   observe({updateCheckboxGroupInput(session, "MapIn",
+#                                 choices=c("Choose a Park"="", c(`names<-`(getParkInfo(data, info="ParkCode"), getParkInfo(data, info="ParkShortName"))))
+#   )})
+#   return(reactive(input$MapIn))
+# }
+#
