@@ -81,9 +81,10 @@ wqp_data1 <- wqp_data_all |>
   # removing low detection
   filter(!grepl("Quantification Limit|Not Detected|Not Reported",
                 ResultDetectionConditionText)) |> 
-  filter(!grepl(paste(chr_terms,
-                      collapse = "|"),
-                CharacteristicName)) |>
+  filter(!CharacteristicName %in% chr_terms) |> 
+  # filter(!grepl(paste(chr_terms,
+  #                     collapse = "|"),
+  #               CharacteristicName)) |>
   # correcting depth measurements
   mutate(ActivityDepthHeightMeasure.MeasureValue = if_else(ActivityDepthHeightMeasure.MeasureValue < -0.03, 0,
                                                            ActivityDepthHeightMeasure.MeasureValue),

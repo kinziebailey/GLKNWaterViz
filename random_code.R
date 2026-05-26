@@ -79,7 +79,19 @@ depth_filter <- wqp_data |>
            ActivityDepthHeightMeasure.MeasureValue >= -2) 
 
 avg_data <- depth_filter |> 
-  summarise()
+  # group_by(MonitoringLocationIdentifier,
+  #          ActivityEndDate,
+  #          CharacteristicName) |> 
+  summarise(n_depths = sum(!is.na(ActivityDepthHeightMeasure.MeasureValue)),
+            result_summary = case_when(n_depths == 0 ~ ResultMeasureValue[1],
+                                       n_depths == 1 ~ ResultMeasureValue[!is.na(ActivityDepthHeightMeasure.MeasureValue)][1],
+                                       n_depths == 2 ~ mean(ResultMeasureValue[!is.na(ActivityDepthHeightMeasure.MeasureValue)], 
+                                                            na.rm = TRUE),
+                                       n_depths >= 3 ~ median(ResultMeasureValue[!is.na(ActivityDepthHeightMeasure.MeasureValue)], 
+                                                              na.rm = TRUE)),
+            .by = c(MonitoringLocationIdentifier,
+                    ActivityEndDate,
+                    CharacteristicName))
   
   
 
