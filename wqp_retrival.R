@@ -9,7 +9,7 @@
 
 
 # Loading required packages ----
-library(dataRetrival) # download from WQP
+library(dataRetrieval) # download from WQP
 library(readr) # tidyverse data import
 library(dplyr) # data wrangling
 
@@ -25,7 +25,7 @@ thresholds <- read_csv("./Data/thresholds.csv")
 
 # Getting WQP Data ---- 
 # Looping through parks to get WQP data
-results <- lapply(sort(unique(glkn_stations$Park)), function(park){
+WQPViews <- lapply(sort(unique(glkn_stations$Park)), function(park){
   
   # Getting site ID for park
   sites <- glkn_stations |>
@@ -41,27 +41,35 @@ results <- lapply(sort(unique(glkn_stations$Park)), function(park){
 })
 
 # creating dataframe
-wqp_data_all <- bind_rows(results)
-
-# Removing "non-data" ----
-## CharacteristicNames to remove ----
-chr_terms <- c("Wave height",
-               "Water appearance",
-               "Chlorophyll/Pheophytin ratio",
-               "External condition",
-               "Head Capsule Width",
-               "Length",
-               # "Hindwing Length",
-               # "Hind Femur Length",
-               "Mercury",
-               "Methylmercury",
-               "Carbon, isotope of mass 13",
-               "Age",
-               "Sex",
-               "Weight",
-               "Secchi Reading Condition")
+wqp_data_all <- bind_rows(WQPViews)
 
 # Data Wrangling ----
+## CharacteristicNames to remove ----
+chr_terms <- c("Age",
+               "Carbon, isotope of mass 13",
+               "Carbon-13/Carbon-12 ratio",
+               "Chlorophyll/Pheophytin ratio",
+               "Cloud cover (choice list)",
+               "External condition (text)",                           
+               "General observation (text)",                          
+               "Head Capsule Width",                                  
+               "Hind Femur Length",                                   
+               "Hindwing Length",                                     
+               "Length",                                              
+               "Length, total",
+               "Mercury",
+               "Methylmercury(1+)",
+               "Nitrogen-15",
+               "Nitrogen-15/Nitrogn-14 ratio",
+               "Secchi Reading Condition (choice list)",
+               "Sex (choice list)",
+               "Water appearance (text)",
+               "Wave height",
+               "Weather coments (text)",
+               "Weight",
+               "Wind Condition (choice list)",
+               "Wind direction (direction from, expressed 0-360 deg)")
+
 ## removing unneeded data ----
 wqp_data1 <- wqp_data_all |> 
   # removing quality control
@@ -70,21 +78,22 @@ wqp_data1 <- wqp_data_all |>
   # removing air and other
   filter(!grepl("Air|Other",
                 ActivityMediaName)) |> 
-  # removing charateristicnames 
+  # removing low detection
+  filter(!grepl("Quantification Limit|Not Detected|Not Reported",
+                ResultDetectionConditionText)) |> 
   filter(!grepl(paste(chr_terms,
                       collapse = "|"),
-                CharacteristicName)) |> 
-  # changing phosphorus if depth measurement is not 0
-  mutate(CharacteristicName = case_when(ActivityDepthHeightMeasure.MeasureValue != 0 &
-                                          CharacteristicName == "Total Phosphorus, mixed forms" ~ "Bottom Phosphorus",
-                                        TRUE ~ CharacteristicName),
-         # making numeric
+                CharacteristicName)) |>
+  # correcting depth measurements
+  mutate(ActivityDepthHeightMeasure.MeasureValue = if_else(ActivityDepthHeightMeasure.MeasureValue < -0.03, 0,
+                                                           ActivityDepthHeightMeasure.MeasureValue),
+         ActivityDepthHeightMeasure.MeasureValue = -abs(ActivityDepthHeightMeasure.MeasureValue),
          ResultMeasureValue = as.numeric(ResultMeasureValue))
 
 ## Edit column names to match NCRN data ---- 
 wqp_data <- wqp_data1 |>
   # adding station data
-  left_join(glkn_stations) |> 
+  left_join(glkn_stations) |>
   # adding year for cleaning purposes
   mutate(year = format(ActivityStartDate, "%Y")) |> 
   # filtering by sites that have >= 5 years of data
@@ -98,7 +107,7 @@ wqp_data <- wqp_data1 |>
          ProjectName = ProjectIdentifier) |> 
   rename(ActivityLocation.LatitudeMeasure = LatitudeMeasure,
          ActivityLocation.LongitudeMeasure = LongitudeMeasure,
-         SampleCollectionMethod.MethodDescriptionText = MethodDescriptionText) 
+         SampleCollectionMethod.MethodDescriptionText = MethodDescriptionText)
 
 # Writing the new wqp_data ----
 write_csv(wqp_data,
@@ -119,18 +128,20 @@ meta_data_large <- wqp_data |>
 ## Altering Column information ----
 meta_data <- meta_data_large |> 
   # adding thresholds
-  # left_join(thresholds) |> 
+  left_join(thresholds) |>
   # adding char names
-  # left_join(chr_lookup) |> 
+  left_join(chr_lookup) |>
   mutate(Network = "GLKN",
-         ShortName = case_when(Park == "INDU" ~ "Indiana Dunes",
+         ShortName = case_when(Park == "APIS" ~ "Apostle Islands",
+                               Park == "INDU" ~ "Indiana Dunes",
                                Park == "ISRO" ~ "Isle Royale",
                                Park == "PIRO" ~ "Pictured Rocks",
                                Park == "SLBE" ~ "Sleeping Bear",
                                Park == "VOYA" ~ "Voyageurs",
                                Park == "SACN" ~ "St. Croix",
                                TRUE ~ "OTHER"),
-         LongName = case_when(Park == "INDU" ~ "Indiana Dunes National Park",
+         LongName = case_when(Park == "APIS" ~ "Apostle Islands National Lakeshore",
+                              Park == "INDU" ~ "Indiana Dunes National Park",
                               Park == "ISRO" ~ "Isle Royale National Park",
                               Park == "PIRO" ~ "Pictured Rocks National Lakeshore",
                               Park == "SLBE" ~ "Sleeping Bear Dunes National Lakeshore",
@@ -144,14 +155,14 @@ meta_data <- meta_data_large |>
          #          map(~ paste(.x[1:2],
          #                      collapse = "_"))),
          SiteCodeWQX = SiteCode, # I'm not sure this is the correct information? 
-         DisplayName = CharacteristicName,
-         DataName = CharacteristicName,
-         Category = CharacteristicName,
-         CategoryDisplay = CharacteristicName,
-         LowerPoint = 0,
-         UpperPoint = 0,
-         LowerDescription = "Nothing",
-         UpperDescription = "Nothing",
+         # DisplayName = CharacteristicName,
+         # DataName = CharacteristicName,
+         # Category = CharacteristicName,
+         # CategoryDisplay = CharacteristicName,
+         # LowerPoint = 0,
+         # UpperPoint = 0,
+         # LowerDescription = "Nothing",
+         # UpperDescription = "Nothing",
          DataType = "numeric",
          AssessmentDetails = "Nothing",
          IsActiveSiteCode = TRUE,

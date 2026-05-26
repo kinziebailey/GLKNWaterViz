@@ -18,39 +18,20 @@ library(openair)
 library(NADA)
 library(plotly)
 # library(devtools)
-
-### Getting Data ####
-
+# 
+# ### Getting Data ####
+# 
 mname <- file.path('Data',Network, metadataname)
-dname <- file.path('Data',Network, dataname)
-
-# if (file.exists(mname2)==F | file.exists(dname2)==F){
-#   # filter the metadata
-#   mname <- file.path('Data',Network,metadataname)
-#   metadata_df <- read.csv(mname)
-#   metadata_active <- metadata_df %>%
-#     dplyr::filter(IsActiveCharacteristicName == "True") %>%
-#     dplyr::filter(IsActiveSiteCode == "True")
-#   write.csv(metadata_active, mname2, row.names = FALSE)
-#   # filter the data
-#   active_chars <- metadata_active %>%
-#     dplyr::pull(DataName) %>% unique
-#   active_sites <- metadata_active %>%
-#     dplyr::pull(SiteCode) %>% unique
-#   dname <- file.path('Data',Network,dataname)
-#   filtered_data <- read.csv(dname) %>%
-#     dplyr::filter(CharacteristicName %in% active_chars) %>%
-#     dplyr::filter(MonitoringLocationIdentifier %in% active_sites)
-#   write.csv(filtered_data, dname2, row.names = FALSE)
-# } else {
-  metadata_active <- read.csv(mname)
-# }
-
-#### Get data ####
-WaterData <- suppressWarnings(importNCRNWater(paste0("./Data/", Network),
-                                              Data = dataname,
-                                              MetaData = metadataname,
-                                              wqx = wqx_bool))
+# dname <- file.path('Data',Network, dataname)
+# 
+metadata_active <- read.csv(mname)
+# 
+# 
+# #### Get data ####
+# WaterData <- suppressWarnings(importNCRNWater(paste0("./Data/", Network),
+#                                               Data = dataname,
+#                                               MetaData = metadataname,
+#                                               wqx = wqx_bool))
 
 #### Get photos ####
 
@@ -2721,293 +2702,293 @@ shinyServer(function(input, output, session){
   }
 
   #### Scatter Plot ####
-  MakeScatterPlot <- reactive({
-    # A reactive function that using plotly to create a scatter plot based on user selected site(s) and aggregation method (year, month, site, or depth).
-    # Args:
-    #  DataOpts$Years, c(int), required. The character string provided by yearChooser() in global.R.
-    #  input$SummaryBoxBy, chr, required. Determines aggregation type and formats accordingly if month or year is selected.
-    #  input$BoxThreshLine, bool, optional. Default False. If True, looks up the water quality threshold.
-    #  DataOpts$Park, chr, required. A park acronym. E.g., 'VOYA'.
-    #  DataOpts$Site, chr or c(chr), required. A site code. E.g., 'NCRN_ROCR_KLVA'
-    #  DataOpts$Param, chr, required. A characteristic abbreviation. E.g., 'DOper'.
-    #
-    # Returns:
-    #  Plotly figure
-    #
-    # Example:
-    #   DataOpts$Years <- c(2010,2024),
-    #   input$SummaryBoxBy <- "year"
-    #   input$BoxThreshLine <- T
-    #   DataOpts$Park <- 'ROCR'
-    #   DataOpts$Site <- c('NCRN_ROCR_KLVA', 'NCRN_ROCR_FEBR')
-    #   DataOpts$Param <- 'DOper'
-    #
-    #   myfigure <- MakeScatterPlot(
-    #     DataOpts$Years
-    #     ,input$SummaryBoxBy
-    #     ,input$SeriesThreshLine
-    #     ,DataOpts$Park
-    #     ,DataOpts$Site
-    #     ,DataOpts$Param
-    #   )
-    #
-    req(DataOpts$Park, DataOpts$Site, DataOpts$Param)
-
-    # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L73
-    ##### DF ####
-    scatter_df <- DataUseMultiple() %>%
-      dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
-      # dplyr::filter(ActivityDepthHeightMeasure.MeasureValue >= as.numeric(DataOpts$Depth[1]) &
-      #                 ActivityDepthHeightMeasure.MeasureValue <= as.numeric(DataOpts$Depth[2])) %>% # depth filtering
-      dplyr::arrange(MonitoringLocationName, Date)
-
-    #### Initialize variables ####
-    ynames <- c()
-    xname <- NA
-    labels <- NA
-    assessment <- input$SeriesThreshLine
-    assessments <- c()
-    threshold <- NA
-    references <- c()
-    units <- c()
-    displaynames <- c()
-
-    # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L75-L98
-    ##### Site ####
-    for (site in DataOpts$Site){
-      displayname <- getCharInfo(
-        object = WaterData
-        ,parkcode = DataOpts$Park
-        ,sitecode = site
-        ,charname = DataOpts$Param
-        , info = "DisplayName"
-      )
-      ##### Units ####
-      displaynames <- c(displaynames, displayname)
-      unit <- getCharInfo(
-        object = WaterData
-        ,parkcode = DataOpts$Park
-        ,sitecode = site
-        ,charname = DataOpts$Param
-        ,info = "Units"
-      )
-
-      units <- c(units, unit)
-      yname<-paste0(displayname," (", unit,")")
-      ynames <- c(yname, ynames)
-    }
-
-    units <- units %>% unique
-    displaynames <- displaynames %>% unique
-
-    # resolve conflicts that would happen if the metadata file was messed up
-    # e.g., if one characteristic had multiple units
-    n_ynames <- length(ynames %>% unique)
-    if (n_ynames == 1){
-      yname <- ynames %>% unique
-    } else if (n_ynames == 0){
-      yname <- ''
-    } else {
-      yname <- ynames[1]
-    }
-
-    xname <- 'Date'
-    ##### Thresholds ####
-    if(assessment){
-      for (site in DataOpts$Site){
-        tmp <- c(getCharInfo(object = WaterData,
-                             parkcode = DataOpts$Park,
-                             sitecode = site,
-                             charname = DataOpts$Param,
-                             info = "LowerPoint"),
-                 getCharInfo(object = WaterData,
-                             parkcode = DataOpts$Park,
-                             sitecode = site,
-                             charname = DataOpts$Param,
-                             info = "UpperPoint")) %>%
-          unlist %>% unique
-        assessments <- c(tmp, assessments)
-
-        tmp2 <- c(getCharInfo(object = WaterData,
-                              parkcode = DataOpts$Park,
-                              sitecode = site,
-                              charname = DataOpts$Param,
-                              info= "AssessmentDetails"),
-                  getCharInfo(object = WaterData,
-                              parkcode = DataOpts$Park,
-                              sitecode = site,
-                              charname = DataOpts$Param,
-                              info = "AssessmentDetails")) %>%
-          unlist %>% unique
-        references <- c(tmp2, references)
-      }
-
-      threshold <- assessments %>% unique
-      threshold <- threshold[!is.na(threshold)] # needed if there is no upper or lower threshold.
-
-      reference <- references %>% unique
-      reference <- reference[!is.na(reference)] # needed if there is no upper or lower threshold.
-    }
-
-    # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L106-L127
-    ##### Setting NA info ####
-    n_not_na <- nrow(scatter_df %>% dplyr::filter(is.na(Value)==F))
-    n_na <- nrow(scatter_df %>% dplyr::filter(is.na(Value)))
-    title <- paste0(NCRNWater::getParkInfo(object = WaterData,
-                                           parkcode = DataOpts$Park,
-                                           info = "ParkLongName"),
-                    ': ', yname, '\nYears: ',DataOpts$Years[1], '-',
-                    DataOpts$Years[2],'; Total measurements: ',n_not_na+n_na,
-                    ' (non-NA: ', n_not_na, ', NA: ', n_na,')')
-
-    m <- list( # figure margins
-      l = 100,
-      r = 50,
-      b = 100,
-      t = 100,
-      pad = 20
-    )
-    #### Plot ####
-    baseplot <-
-      plotly::plot_ly(
-        scatter_df
-        ,type = 'scatter'
-        ,mode = 'markers'
-        ,width = (GraphOpts$FigureHorizontalScaling*as.numeric(input$dimension[1])) # to dynamically resize fig
-        ,height = (GraphOpts$FigureVerticalScaling*as.numeric(input$dimension[2]))
-      ) %>% add_trace(
-        y = ~Value
-        ,x = ~Date
-        ,color = ~MonitoringLocationName
-        ,symbol = ~MonitoringLocationName
-        # ,connectgaps=TRUE # set to FALSE to create breaks in the line for NAs
-        # ,line=list(width=GraphOpts$LineWidth)
-        ,marker = list(
-          size = GraphOpts$PointSize
-          ,opacity = as.numeric(GraphOpts$ShowHidePoint)
-        )
-        ,hovertemplate = paste0(
-          "<br>Date: ", scatter_df$Date
-          ,"<br>Site: ", scatter_df$MonitoringLocationName
-          ,"<br>", yname, ": ", scatter_df$Value
-          # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-          # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-          ,'<extra></extra>'
-        )
-        ,text = NULL
-      ) %>% layout(
-        font = list(size = GraphOpts$FontSize)
-        ,margin = m
-        ,title = list(text = title,
-                      font = list(size = GraphOpts$FontSize))
-        ,legend = list(
-          title = list(text = '<br><br>')
-          ,font = list(size = GraphOpts$FontSize)
-        )
-        ,hovermode = 'x'
-        ,showlegend = T
-        ,yaxis = list(title = list(text = paste0(yname, '<br>'),
-                                   font = list(size = GraphOpts$FontSize)),
-                      font = list(size = GraphOpts$FontSize))
-        ,xaxis = list(title = list(text = paste0(xname, '<br>'),
-                                   font = list(size = GraphOpts$FontSize)),
-                      font = list(size = GraphOpts$FontSize))
-      )
-    ##### Thresholds ####
-    if (assessment == T & identical(threshold, numeric(0)) == F) {
-      # a <- list( # commented-out because the annotation doesn't look great
-      #   x = 1,
-      #   y = 0.95*threshold,
-      #   text = paste0(stringr::str_split_1(yname, '[(]')[1], 'threshold: ', threshold, ' ', stringr::str_extract(yname, '(?<=\\()[^\\^\\)]+')),
-      #   xref = "x",
-      #   yref = "y",
-      #   showarrow = F,
-      #   ax = 20,
-      #   ay = -40
-      # )
-      if (length(threshold) == 2){
-        baseplot %>% add_trace(
-          name = 'Water Quality Threshold'
-          ,x = ~Date
-          ,y = threshold[1]
-          ,mode = "lines"
-          # ,hoverinfo="text"
-          # ,text="hello"
-          ,hovertemplate = paste0(
-            "<br>Water Quality Threshold"
-            ,"<br>", yname, ": ", threshold[1]
-            # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[1]}
-            # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-            # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-            ,'<extra></extra>'
-          )
-          ,text = NULL
-          ,line = list(width = GraphOpts$LineWidth,
-                       dash = 'dash',
-                       color = GraphOpts$ThColor)
-        ) %>% add_trace(
-          name = 'Water Quality Threshold'
-          ,x = ~Date
-          ,y = threshold[2]
-          ,mode = "lines"
-          # ,hoverinfo="text"
-          # ,text="hello"
-          ,hovertemplate = paste0(
-            "<br>Water Quality Threshold"
-            ,"<br>", yname, ": ", threshold[2]
-            # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[2]}
-            # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-            # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-            ,'<extra></extra>'
-          )
-          ,text = NULL
-          # ,color = GraphOpts$ThColor
-          ,line = list(width = GraphOpts$LineWidth,
-                       dash = 'dash',
-                       color = GraphOpts$ThColor)
-        )
-        #   baseplot %>% layout(
-        #   shapes = list(
-        #     hline(threshold[1])
-        #     ,hline(threshold[2])
-        #     )
-        #   # ,annotations = a # commented-out because the annotation doesn't look great
-        # )
-
-      } else if (length(threshold) == 1){
-        baseplot %>% add_trace(
-          name = 'Water Quality Threshold'
-          ,x = ~Date
-          ,y = threshold
-          ,mode = "lines"
-          # ,hoverinfo="text"
-          # ,text="hello"
-          ,hovertemplate = paste0(
-            "<br>Water Quality Threshold"
-            ,"<br>", yname, ": ", threshold
-            # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[2]}
-            # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-            # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-            ,'<extra></extra>'
-          )
-          ,text = NULL
-          # ,color = GraphOpts$ThColor
-          ,line = list(width = GraphOpts$LineWidth,
-                       dash = 'dash',
-                       color = GraphOpts$ThColor)
-        )
-        # baseplot %>% layout(
-        #   shapes = list(hline(threshold))
-        # # ,annotations = a # commented-out because the annotation doesn't look great
-        # )
-      }
-    } else {
-
-      baseplot
-    }
-  })
-
-  output$ScatterPlot <- renderPlotly({   MakeScatterPlot() })
+  # MakeScatterPlot <- reactive({
+  #   # A reactive function that using plotly to create a scatter plot based on user selected site(s) and aggregation method (year, month, site, or depth).
+  #   # Args:
+  #   #  DataOpts$Years, c(int), required. The character string provided by yearChooser() in global.R.
+  #   #  input$SummaryBoxBy, chr, required. Determines aggregation type and formats accordingly if month or year is selected.
+  #   #  input$BoxThreshLine, bool, optional. Default False. If True, looks up the water quality threshold.
+  #   #  DataOpts$Park, chr, required. A park acronym. E.g., 'VOYA'.
+  #   #  DataOpts$Site, chr or c(chr), required. A site code. E.g., 'NCRN_ROCR_KLVA'
+  #   #  DataOpts$Param, chr, required. A characteristic abbreviation. E.g., 'DOper'.
+  #   #
+  #   # Returns:
+  #   #  Plotly figure
+  #   #
+  #   # Example:
+  #   #   DataOpts$Years <- c(2010,2024),
+  #   #   input$SummaryBoxBy <- "year"
+  #   #   input$BoxThreshLine <- T
+  #   #   DataOpts$Park <- 'ROCR'
+  #   #   DataOpts$Site <- c('NCRN_ROCR_KLVA', 'NCRN_ROCR_FEBR')
+  #   #   DataOpts$Param <- 'DOper'
+  #   #
+  #   #   myfigure <- MakeScatterPlot(
+  #   #     DataOpts$Years
+  #   #     ,input$SummaryBoxBy
+  #   #     ,input$SeriesThreshLine
+  #   #     ,DataOpts$Park
+  #   #     ,DataOpts$Site
+  #   #     ,DataOpts$Param
+  #   #   )
+  #   #
+  #   req(DataOpts$Park, DataOpts$Site, DataOpts$Param)
+  # 
+  #   # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L73
+  #   ##### DF ####
+  #   scatter_df <- DataUseMultiple() %>%
+  #     dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
+  #     # dplyr::filter(ActivityDepthHeightMeasure.MeasureValue >= as.numeric(DataOpts$Depth[1]) &
+  #     #                 ActivityDepthHeightMeasure.MeasureValue <= as.numeric(DataOpts$Depth[2])) %>% # depth filtering
+  #     dplyr::arrange(MonitoringLocationName, Date)
+  # 
+  #   #### Initialize variables ####
+  #   ynames <- c()
+  #   xname <- NA
+  #   labels <- NA
+  #   assessment <- input$SeriesThreshLine
+  #   assessments <- c()
+  #   threshold <- NA
+  #   references <- c()
+  #   units <- c()
+  #   displaynames <- c()
+  # 
+  #   # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L75-L98
+  #   ##### Site ####
+  #   for (site in DataOpts$Site){
+  #     displayname <- getCharInfo(
+  #       object = WaterData
+  #       ,parkcode = DataOpts$Park
+  #       ,sitecode = site
+  #       ,charname = DataOpts$Param
+  #       , info = "DisplayName"
+  #     )
+  #     ##### Units ####
+  #     displaynames <- c(displaynames, displayname)
+  #     unit <- getCharInfo(
+  #       object = WaterData
+  #       ,parkcode = DataOpts$Park
+  #       ,sitecode = site
+  #       ,charname = DataOpts$Param
+  #       ,info = "Units"
+  #     )
+  # 
+  #     units <- c(units, unit)
+  #     yname<-paste0(displayname," (", unit,")")
+  #     ynames <- c(yname, ynames)
+  #   }
+  # 
+  #   units <- units %>% unique
+  #   displaynames <- displaynames %>% unique
+  # 
+  #   # resolve conflicts that would happen if the metadata file was messed up
+  #   # e.g., if one characteristic had multiple units
+  #   n_ynames <- length(ynames %>% unique)
+  #   if (n_ynames == 1){
+  #     yname <- ynames %>% unique
+  #   } else if (n_ynames == 0){
+  #     yname <- ''
+  #   } else {
+  #     yname <- ynames[1]
+  #   }
+  # 
+  #   xname <- 'Date'
+  #   ##### Thresholds ####
+  #   if(assessment){
+  #     for (site in DataOpts$Site){
+  #       tmp <- c(getCharInfo(object = WaterData,
+  #                            parkcode = DataOpts$Park,
+  #                            sitecode = site,
+  #                            charname = DataOpts$Param,
+  #                            info = "LowerPoint"),
+  #                getCharInfo(object = WaterData,
+  #                            parkcode = DataOpts$Park,
+  #                            sitecode = site,
+  #                            charname = DataOpts$Param,
+  #                            info = "UpperPoint")) %>%
+  #         unlist %>% unique
+  #       assessments <- c(tmp, assessments)
+  # 
+  #       tmp2 <- c(getCharInfo(object = WaterData,
+  #                             parkcode = DataOpts$Park,
+  #                             sitecode = site,
+  #                             charname = DataOpts$Param,
+  #                             info= "AssessmentDetails"),
+  #                 getCharInfo(object = WaterData,
+  #                             parkcode = DataOpts$Park,
+  #                             sitecode = site,
+  #                             charname = DataOpts$Param,
+  #                             info = "AssessmentDetails")) %>%
+  #         unlist %>% unique
+  #       references <- c(tmp2, references)
+  #     }
+  # 
+  #     threshold <- assessments %>% unique
+  #     threshold <- threshold[!is.na(threshold)] # needed if there is no upper or lower threshold.
+  # 
+  #     reference <- references %>% unique
+  #     reference <- reference[!is.na(reference)] # needed if there is no upper or lower threshold.
+  #   }
+  # 
+  #   # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L106-L127
+  #   ##### Setting NA info ####
+  #   n_not_na <- nrow(scatter_df %>% dplyr::filter(is.na(Value)==F))
+  #   n_na <- nrow(scatter_df %>% dplyr::filter(is.na(Value)))
+  #   title <- paste0(NCRNWater::getParkInfo(object = WaterData,
+  #                                          parkcode = DataOpts$Park,
+  #                                          info = "ParkLongName"),
+  #                   ': ', yname, '\nYears: ',DataOpts$Years[1], '-',
+  #                   DataOpts$Years[2],'; Total measurements: ',n_not_na+n_na,
+  #                   ' (non-NA: ', n_not_na, ', NA: ', n_na,')')
+  # 
+  #   m <- list( # figure margins
+  #     l = 100,
+  #     r = 50,
+  #     b = 100,
+  #     t = 100,
+  #     pad = 20
+  #   )
+  #   #### Plot ####
+  #   baseplot <-
+  #     plotly::plot_ly(
+  #       scatter_df
+  #       ,type = 'scatter'
+  #       ,mode = 'markers'
+  #       ,width = (GraphOpts$FigureHorizontalScaling*as.numeric(input$dimension[1])) # to dynamically resize fig
+  #       ,height = (GraphOpts$FigureVerticalScaling*as.numeric(input$dimension[2]))
+  #     ) %>% add_trace(
+  #       y = ~Value
+  #       ,x = ~Date
+  #       ,color = ~MonitoringLocationName
+  #       ,symbol = ~MonitoringLocationName
+  #       # ,connectgaps=TRUE # set to FALSE to create breaks in the line for NAs
+  #       # ,line=list(width=GraphOpts$LineWidth)
+  #       ,marker = list(
+  #         size = GraphOpts$PointSize
+  #         ,opacity = as.numeric(GraphOpts$ShowHidePoint)
+  #       )
+  #       ,hovertemplate = paste0(
+  #         "<br>Date: ", scatter_df$Date
+  #         ,"<br>Site: ", scatter_df$MonitoringLocationName
+  #         ,"<br>", yname, ": ", scatter_df$Value
+  #         # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+  #         # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+  #         ,'<extra></extra>'
+  #       )
+  #       ,text = NULL
+  #     ) %>% layout(
+  #       font = list(size = GraphOpts$FontSize)
+  #       ,margin = m
+  #       ,title = list(text = title,
+  #                     font = list(size = GraphOpts$FontSize))
+  #       ,legend = list(
+  #         title = list(text = '<br><br>')
+  #         ,font = list(size = GraphOpts$FontSize)
+  #       )
+  #       ,hovermode = 'x'
+  #       ,showlegend = T
+  #       ,yaxis = list(title = list(text = paste0(yname, '<br>'),
+  #                                  font = list(size = GraphOpts$FontSize)),
+  #                     font = list(size = GraphOpts$FontSize))
+  #       ,xaxis = list(title = list(text = paste0(xname, '<br>'),
+  #                                  font = list(size = GraphOpts$FontSize)),
+  #                     font = list(size = GraphOpts$FontSize))
+  #     )
+  #   ##### Thresholds ####
+  #   if (assessment == T & identical(threshold, numeric(0)) == F) {
+  #     # a <- list( # commented-out because the annotation doesn't look great
+  #     #   x = 1,
+  #     #   y = 0.95*threshold,
+  #     #   text = paste0(stringr::str_split_1(yname, '[(]')[1], 'threshold: ', threshold, ' ', stringr::str_extract(yname, '(?<=\\()[^\\^\\)]+')),
+  #     #   xref = "x",
+  #     #   yref = "y",
+  #     #   showarrow = F,
+  #     #   ax = 20,
+  #     #   ay = -40
+  #     # )
+  #     if (length(threshold) == 2){
+  #       baseplot %>% add_trace(
+  #         name = 'Water Quality Threshold'
+  #         ,x = ~Date
+  #         ,y = threshold[1]
+  #         ,mode = "lines"
+  #         # ,hoverinfo="text"
+  #         # ,text="hello"
+  #         ,hovertemplate = paste0(
+  #           "<br>Water Quality Threshold"
+  #           ,"<br>", yname, ": ", threshold[1]
+  #           # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[1]}
+  #           # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+  #           # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+  #           ,'<extra></extra>'
+  #         )
+  #         ,text = NULL
+  #         ,line = list(width = GraphOpts$LineWidth,
+  #                      dash = 'dash',
+  #                      color = GraphOpts$ThColor)
+  #       ) %>% add_trace(
+  #         name = 'Water Quality Threshold'
+  #         ,x = ~Date
+  #         ,y = threshold[2]
+  #         ,mode = "lines"
+  #         # ,hoverinfo="text"
+  #         # ,text="hello"
+  #         ,hovertemplate = paste0(
+  #           "<br>Water Quality Threshold"
+  #           ,"<br>", yname, ": ", threshold[2]
+  #           # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[2]}
+  #           # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+  #           # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+  #           ,'<extra></extra>'
+  #         )
+  #         ,text = NULL
+  #         # ,color = GraphOpts$ThColor
+  #         ,line = list(width = GraphOpts$LineWidth,
+  #                      dash = 'dash',
+  #                      color = GraphOpts$ThColor)
+  #       )
+  #       #   baseplot %>% layout(
+  #       #   shapes = list(
+  #       #     hline(threshold[1])
+  #       #     ,hline(threshold[2])
+  #       #     )
+  #       #   # ,annotations = a # commented-out because the annotation doesn't look great
+  #       # )
+  # 
+  #     } else if (length(threshold) == 1){
+  #       baseplot %>% add_trace(
+  #         name = 'Water Quality Threshold'
+  #         ,x = ~Date
+  #         ,y = threshold
+  #         ,mode = "lines"
+  #         # ,hoverinfo="text"
+  #         # ,text="hello"
+  #         ,hovertemplate = paste0(
+  #           "<br>Water Quality Threshold"
+  #           ,"<br>", yname, ": ", threshold
+  #           # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[2]}
+  #           # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+  #           # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+  #           ,'<extra></extra>'
+  #         )
+  #         ,text = NULL
+  #         # ,color = GraphOpts$ThColor
+  #         ,line = list(width = GraphOpts$LineWidth,
+  #                      dash = 'dash',
+  #                      color = GraphOpts$ThColor)
+  #       )
+  #       # baseplot %>% layout(
+  #       #   shapes = list(hline(threshold))
+  #       # # ,annotations = a # commented-out because the annotation doesn't look great
+  #       # )
+  #     }
+  #   } else {
+  # 
+  #     baseplot
+  #   }
+  # })
+  # 
+  # output$ScatterPlot <- renderPlotly({   MakeScatterPlot() })
 
   #### Box Plot ####
   MakeBoxPlot <- reactive({

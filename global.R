@@ -1,20 +1,60 @@
-# Setup ####
-# Specify the network
+# Setup ----
+## Loading NCRNWater ----
+# library(remotes)
+# options(download.file.method = "wininet")
+# remotes::install_github('NCRN/NCRNWater.git',
+#                         dependencies = FALSE,
+#                         force = TRUE)
+
+## Libraries ----
+# library(shiny)
+# library(lattice)
+# library(dplyr)
+# library(lubridate)
+# library(NCRNWater)
+# library(DT)
+# library(htmltools)
+# library(ggplot2)
+# library(leaflet)
+# library(jsonlite)
+# library(purrr)
+# library(magrittr)
+# library(openair)
+# library(NADA)
+# library(plotly)
+# library(readr)
+# library(devtools)
+
+## Specify the network ----
 Network <- "GLKN"
 Network_long <- "Great Lakes Network" # for navbar title
 Viz_name <- "Lake and Stream Water Quality"
-dataname <- "wqp_glkn.csv" # global variable instead of hardcoding in `server.R` NCRNWater::importNCRNWater() call
 
-# Data
-dataname2 <- "wqp_glkn.csv"
+## Data ----
+dataname <- "wqp_glkn.csv"
 metadataname <- "MetaData.csv"
-metadataname2 <- "MetaData.csv"
 wqx_bool <- T
 
-GraphColors<-read.csv("colors.csv", header=T, as.is=T)
+### Getting Data ####
 
-# Needs updating
-DATASET_URL <- a("Click here to export the dataset from NPS DataStore\n", href="https://irma.nps.gov/DataStore/Reference/Profile/2309154")
+# mname <- file.path('Data',Network, metadataname)
+# dname <- file.path('Data',Network, dataname)
+
+# metadata_active <- read.csv(mname)
+
+
+#### Get data ####
+WaterData <- suppressWarnings(importNCRNWater(paste0("./Data/", Network),
+                                              Data = dataname,
+                                              MetaData = metadataname,
+                                              wqx = wqx_bool))
+
+
+## Other Settings ----
+DATASET_URL <- a("Click here to export the dataset from NPS DataStore\n", 
+                 href="https://irma.nps.gov/DataStore/Reference/Profile/2309154")
+
+GraphColors <- read.csv("colors.csv", header=T, as.is=T)
 
 #### Years Module ####
 yearChooserUI <- function(id){
@@ -314,7 +354,7 @@ paramChooser <- function(input, output, session, data, park, site, chosen){
     return(Choice)
    })
 
-  observeEvent(
+  observe(
     updateSelectizeInput(session, inputId = "ParamIn", selected = chosen(),
                          choices = c("Choose a Parameter"="",
                                      as.list(sort(PChoices()))))

@@ -263,43 +263,43 @@ mainPanel(
       ,suppressWarnings(includeHTML("www/instructions.html")) # tags$iframe() creates weird scroll
     ),
     ## Scatter Plot Panel ####
-    tabPanel(
-      h4("Scatter Plot")
-      ,div(
-        style='padding: 5px 10px'
-        ,class="panel panel-default"
-        ,fluidRow(
-          column(width=4, parkChooserUI("ScatterPark"))
-          ,column(width=4, siteChooserUI("ScatterSite"))
-          ,column(width=4, paramChooserUI("ScatterParam"))
-        )
-        ,fluidRow(
-          column(width=4, yearChooserUI("ScatterYears"))
-          ,column(width=2,checkboxInput("ShowHidePoint", "Show points", TRUE))
-          ,column(width=2, checkboxInput("SeriesThreshLine",
-                                         "Show Water Quality Threshold Line", TRUE))
-          ,column(width=2, actionButton(inputId="GraphicsModal2",
-                                        label='Graphics Options',
-                                        class="btn btn-primary",
-                                        style="margin-top: 15px"))
-          ,column(width=2, actionButton(inputId="AboutScatterPlot",
-                                        label="About this Graph...",
-                                        class="btn btn-primary",
-                                        style="margin-top: 15px"))
-        )
-        # ,fluidRow(
-        #   column(width=4, depthChooserUI("ScatterDepth"))
-        # )
-        ,fluidRow(
-          column(width=7)
-          ,column(width=5, htmlOutput("ScatterThresholdSummaryMultiple"))
-        )
-      )
-      ,fluidRow(
-        column(width=12, plotlyOutput("ScatterPlot"))
-      )
-    ),
-    
+    # tabPanel(
+    #   h4("Scatter Plot")
+    #   ,div(
+    #     style='padding: 5px 10px'
+    #     ,class="panel panel-default"
+    #     ,fluidRow(
+    #       column(width=4, parkChooserUI("ScatterPark"))
+    #       ,column(width=4, siteChooserUI("ScatterSite"))
+    #       ,column(width=4, paramChooserUI("ScatterParam"))
+    #     )
+    #     ,fluidRow(
+    #       column(width=4, yearChooserUI("ScatterYears"))
+    #       ,column(width=2,checkboxInput("ShowHidePoint", "Show points", TRUE))
+    #       ,column(width=2, checkboxInput("SeriesThreshLine",
+    #                                      "Show Water Quality Threshold Line", TRUE))
+    #       ,column(width=2, actionButton(inputId="GraphicsModal2",
+    #                                     label='Graphics Options',
+    #                                     class="btn btn-primary",
+    #                                     style="margin-top: 15px"))
+    #       ,column(width=2, actionButton(inputId="AboutScatterPlot",
+    #                                     label="About this Graph...",
+    #                                     class="btn btn-primary",
+    #                                     style="margin-top: 15px"))
+    #     )
+    #     # ,fluidRow(
+    #     #   column(width=4, depthChooserUI("ScatterDepth"))
+    #     # )
+    #     ,fluidRow(
+    #       column(width=7)
+    #       ,column(width=5, htmlOutput("ScatterThresholdSummaryMultiple"))
+    #     )
+    #   )
+    #   ,fluidRow(
+    #     column(width=12, plotlyOutput("ScatterPlot"))
+    #   )
+    # ),
+    # 
     ## Time Series Panel ####
     tabPanel(
       h4("Time Series")
