@@ -343,7 +343,7 @@ mainPanel(
           ,column(width=4, paramChooserUI("ProfileParam"))
         )
         ,fluidRow(
-          column(width=4, yearChooserUI("ProfileYears"))
+          column(width=4, yearpicklistUI("ProfileYears"))
           ,column(width=2,checkboxInput("ShowHidePoint", "Show points", TRUE))
           # ,column(width=2, checkboxInput("SeriesThreshLine", "Show Water Quality Threshold Line", TRUE))
           ,column(width=2, actionButton(inputId="GraphicsModal2", label='Graphics Options', class="btn btn-primary", style="margin-top: 15px"))

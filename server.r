@@ -1,7 +1,10 @@
-options(download.file.method = "wininet")
-remotes::install_github('https://github.com/NCRN/NCRNWater.git',
-                        dependencies = FALSE,
-                        force = TRUE)
+# Loading NCRNWater package ----
+# options(download.file.method = "wininet")
+# remotes::install_github('https://github.com/NCRN/NCRNWater.git',
+#                         dependencies = FALSE,
+#                         force = TRUE)
+
+# Loading needed libraries
 library(shiny)
 library(lattice)
 library(dplyr)
@@ -18,20 +21,20 @@ library(openair)
 library(NADA)
 library(plotly)
 # library(devtools)
-# 
-# ### Getting Data ####
-# 
+
+### Getting Data ####
+
 mname <- file.path('Data',Network, metadataname)
 # dname <- file.path('Data',Network, dataname)
 # 
 metadata_active <- read.csv(mname)
-# 
-# 
-# #### Get data ####
-# WaterData <- suppressWarnings(importNCRNWater(paste0("./Data/", Network),
-#                                               Data = dataname,
-#                                               MetaData = metadataname,
-#                                               wqx = wqx_bool))
+
+
+#### Get data ####
+WaterData <- suppressWarnings(importNCRNWater(paste0("./Data/", Network),
+                                              Data = dataname,
+                                              MetaData = metadataname,
+                                              wqx = wqx_bool))
 
 #### Get photos ####
 
@@ -411,7 +414,7 @@ shinyServer(function(input, output, session){
   )
   ##### Years ####
   ProfileYears<-shiny::callModule(
-    yearChooser
+    yearPicklist
     ,id="ProfileYears"
     ,data=DataUse
     ,chosen=reactive(DataOpts$Years)
@@ -2377,11 +2380,10 @@ shinyServer(function(input, output, session){
   MakeProfilePlot <- reactive({
     # A reactive function that returns a plotly scatterplot of the depth profile.
     # Args:
-    #  DataOpts$Years, c(int), required. The character string provided by yearChooser() in global.R.
+    #  DataOpts$Years, c(int), required. The character string provided by yearPicklist() in global.R.
     #  DataOpts$Park, chr, required. A park acronym. E.g., 'ROCR'.
     #  DataOpts$Site, chr or c(chr), required. A site code. E.g., 'NCRN_ROCR_KLVA'
     #  DataOpts$Param, chr, required. A characteristic abbreviation. E.g., 'DOper'.
-    #  DataOpts$Depth, num, required. A depth measurement. E.g. '-0.2 m'.
     #
     # Returns:
     #  Plotly figure
@@ -2391,7 +2393,6 @@ shinyServer(function(input, output, session){
     #   DataOpts$Park <- 'ROCR'
     #   DataOpts$Site <- c('NCRN_ROCR_KLVA', 'NCRN_ROCR_FEBR')
     #   DataOpts$Param <- 'DOper'
-    #   DataOpts$Depth <- c(-2,0)
     #
     #   myfigure <- CorrPlotOutMultiple(
     #     DataOpts$Years
@@ -2407,12 +2408,15 @@ shinyServer(function(input, output, session){
 
     ##### DF ####
     profile_df <- DataUseMultiple() %>%
-      filter(Year >= DataOpts$Years[1],
-             Year <= DataOpts$Years[2]) %>%
-      # group_by(MonitoringLocationName, Date) %>%
-      # summarise(Value = mean(Value, na.rm = TRUE),
-      #           .groups = "drop") %>%
-      dplyr::arrange(MonitoringLocationName, Date)
+      filter(as.numeric(Year) %in% as.numeric(DataOpts$Years)) %>%
+      # dplyr::mutate(mon = month(Date)) %>%
+      dplyr::arrange(MonitoringLocationName,
+                     month,
+                     as.numeric(ActivityDepthHeightMeasure.MeasureValue))
+    
+    View(profile_df)
+    
+
     
     #### Initialize variables ####
     xnames <- c()
@@ -2523,32 +2527,65 @@ shinyServer(function(input, output, session){
       pad = 20
     )
     ## Plot ####
-    baseplot <-
-      plotly::plot_ly(
-        profile_df
-        ,type = 'scatter'
-        ,mode = 'markers'
-        ,x = ~Value
-        ,y = ~as.numeric(ActivityDepthHeightMeasure.MeasureValue)
-        ,color = ~MonitoringLocationName
-        ,symbol = ~MonitoringLocationName
-        ,customdata = profile_df$MonitoringLocationName
-        ,marker = list(
-          size = GraphOpts$PointSize
-          ,opacity = as.numeric(GraphOpts$ShowHidePoint)
-        )
-        ,hovertemplate = paste0(
-          "Depth: %{y}"
-          ,"<br>Site: %{customdata}"
-          ,"<br>", xname, ": %{x}"
-          ,'<extra></extra>'
-        )
-      ) %>%
-        layout(title = list(text = title),
-               xaxis = list(title = xname),
-               yaxis = list(title = "Depth"),
-               hovermode = "closest",
-               legend = list(title =list(text = "Site")))
+    
+    ggbaseplot <- ggplot(data = profile_df,
+                       aes(x = Value,
+                           y = as.numeric(ActivityDepthHeightMeasure.MeasureValue),
+                           color = MonitoringLocationName,
+                           shape = MonitoringLocationName,
+                           customdata = MonitoringLocationName)) + 
+      geom_path() + 
+      geom_point(size = GraphOpts$PointSize,
+                 alpha = as.numeric(GraphOpts$ShowHidePoint)) +
+      facet_wrap(~month) + 
+      labs(x = xname,
+           y = "Depth",
+           color = "Month",
+           shape = "Site") +
+      theme_minimal()
+    
+    baseplot <- ggplotly(ggbaseplot, 
+                         tooltip = c("y", "customdata", "x")) %>%
+      style(hovertemplate = paste0(
+        "Depth: %{y}",
+        "<br>Site: %{customdata}",
+        "<br>", xname, ": %{x}",
+        "<extra></extra>")) %>%
+      layout(hovermode = "closest",
+             legend = list(title = list(text = "Site"))
+      )    
+
+    
+    # baseplot <-
+    #   group_map(~ plotly::plot_ly(
+    #     profile_df
+    #     ,type = 'scatter'
+    #     ,mode = 'lines+markers'
+    #     ,x = ~Value
+    #     ,y = ~as.numeric(ActivityDepthHeightMeasure.MeasureValue)
+    #     ,split = ~interaction(MonitoringLocationName, month)
+    #     ,color = ~month
+    #     ,symbol = ~MonitoringLocationName
+    #     ,customdata = profile_df$MonitoringLocationName
+    #     ,marker = list(
+    #       size = GraphOpts$PointSize
+    #       ,opacity = as.numeric(GraphOpts$ShowHidePoint)
+    #     )
+    #     ,hovertemplate = paste0(
+    #       "Depth: %{y}"
+    #       ,"<br>Site: %{customdata}"
+    #       ,"<br>", xname, ": %{x}"
+    #       ,'<extra></extra>'
+    #     )
+    #   ), .keep = TRUE) %>%
+    #     layout(title = list(text = title),
+    #            xaxis = list(title = xname),
+    #            yaxis = list(title = "Depth"),
+    #            hovermode = "closest",
+    #            legend = list(title =list(text = "Site"))) %>%
+    #   subplot(nrows = 1,
+    #           shareX = TRUE,
+    #           shareY = TRUE)
    
     ## Remove? ---- 
   #   if (assessment == T & identical(threshold, numeric(0)) == F) {

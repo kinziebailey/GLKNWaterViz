@@ -1,30 +1,4 @@
 # Setup ----
-## Loading NCRNWater ----
-# library(remotes)
-# options(download.file.method = "wininet")
-# remotes::install_github('NCRN/NCRNWater.git',
-#                         dependencies = FALSE,
-#                         force = TRUE)
-
-## Libraries ----
-# library(shiny)
-# library(lattice)
-# library(dplyr)
-# library(lubridate)
-# library(NCRNWater)
-# library(DT)
-# library(htmltools)
-# library(ggplot2)
-# library(leaflet)
-# library(jsonlite)
-# library(purrr)
-# library(magrittr)
-# library(openair)
-# library(NADA)
-# library(plotly)
-# library(readr)
-# library(devtools)
-
 ## Specify the network ----
 Network <- "GLKN"
 Network_long <- "Great Lakes Network" # for navbar title
@@ -34,21 +8,6 @@ Viz_name <- "Lake and Stream Water Quality"
 dataname <- "wqp_glkn.csv"
 metadataname <- "MetaData.csv"
 wqx_bool <- T
-
-### Getting Data ####
-
-# mname <- file.path('Data',Network, metadataname)
-# dname <- file.path('Data',Network, dataname)
-
-# metadata_active <- read.csv(mname)
-
-
-#### Get data ####
-WaterData <- suppressWarnings(importNCRNWater(paste0("./Data/", Network),
-                                              Data = dataname,
-                                              MetaData = metadataname,
-                                              wqx = wqx_bool))
-
 
 ## Other Settings ----
 DATASET_URL <- a("Click here to export the dataset from NPS DataStore\n", 
@@ -71,26 +30,25 @@ yearChooserUI <- function(id){
 
 
 yearChooser <- function(input, output, session, data, chosen)  {
-
   observe({
     req( data() )
     if(class(data()$Date) == "Date"){
-
+      
       YrMax <- reactive(max(year(data()$Date), na.rm = T))
       YrMin <- reactive(min(year(data()$Date), na.rm = T))
-
+      
       # debounce slows down the app to prevent infinite loops caused by the user changing
       # variables faster than the app can respond
       YrMax_debounce <- debounce(YrMax, 1000)
       YrMin_debounce <- debounce(YrMin, 1000)
-
-      updateSliderInput(session, inputId = "YearsShow",
+      
+      updateSliderInput(session, inputId = "YearsShow2",
                         min = YrMin_debounce(),
                         max = YrMax_debounce(),
                         value = chosen())
     }
   })
-
+  
   return(reactive(input$YearsShow))
 }
 
@@ -107,7 +65,6 @@ yearChooserUI2 <- function(id){
 }
 
 yearChooser2 <- function(input, output, session, data, chosen)  {
-
   observe({
     req( data() )
     if(class(data()$Date) == "Date"){
@@ -129,6 +86,25 @@ yearChooser2 <- function(input, output, session, data, chosen)  {
 
   return(reactive(input$YearsShow2))
 }
+
+### Year Picklist Module ####
+yearpicklistUI <- function(id){
+    ns <- NS(id)
+    selectInput(inputId = ns("YearIn"),
+                label = "Years",
+                choices = sort(unique(data()$Year)))
+  }
+  
+  yearPicklist <- function(input, output, session, data, chosen){
+    observe({
+      updateSelectizeInput(session,
+                           "YearIn",
+                           selected = chosen(),
+                           choices = year(data()$Date))
+    })
+    
+    return(reactive(input$YearsPick))
+  }
 
 #### Depth Module ####
 # depthChooserUI <- function(id){
