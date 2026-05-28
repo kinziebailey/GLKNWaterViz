@@ -4,11 +4,19 @@
 # to run with the GLKNWaterViz dashboard. It will only need to be run once 
 # before the dashboard is updated and republished. 
 # 
-# Before this code is run. Please make sure stations.csv, chr_lookup.csv, and
-# thresholds.csv are up to date. 
+# Before this code is run. Please make sure you have added a Data folder to the 
+# working directory. Run the following in the console: dir.create("Data")
+# Please make sure stations.csv, chr_lookup.csv, and thresholds.csv are up to 
+# date and added to the Data folder. In the Data folder, run the following code
+# to add an additional folder for the water quality portal data:
+# dir.create("Data/GLKN")
+
+# Once those folders and data files have been added/updated, you should be able to
+# run this code and then run the app.
 
 
 # Loading required packages ----
+# Ignore any warnings and messages from the libraries
 library(dataRetrieval) # download from WQP
 library(readr) # tidyverse data import
 library(dplyr) # data wrangling
@@ -24,20 +32,76 @@ chr_lookup <- read_csv("./Data/chr_lookup.csv")
 thresholds <- read_csv("./Data/thresholds.csv")
 
 # Getting WQP Data ---- 
-# Looping through parks to get WQP data
+# THIS IS EXTREMELY SLOW
+# parks <- sort(unique(glkn_stations$Park))
+# 
+# WQPViews <- lapply(parks, function(park){
+#   
+#   sites <- glkn_stations |>
+#     dplyr::filter(Park == park) |>
+#     dplyr::pull(MonitoringLocationIdentifier)
+#   
+#   message("\nPulling WQP data for ", park)
+#   
+#   # Create progress bar for THIS park
+#   pb <- txtProgressBar(min = 0, max = length(sites), style = 3)
+#   
+#   # Download each site with progress bar
+#   dat_list <- vector("list", length(sites))
+#   
+#   for (i in seq_along(sites)) {
+#     dat_list[[i]] <- suppressMessages(readWQPdata(siteid = sites[i])) |>
+#       dplyr::mutate(ResultMeasureValue = as.character(ResultMeasureValue))
+#     
+#     setTxtProgressBar(pb, i)
+#   }
+#   
+#   close(pb)
+#   
+#   # Combine all sites for this park
+#   dplyr::bind_rows(dat_list)
+# })
+# 
+# # Combine all parks
+# wqp_data_all <- dplyr::bind_rows(WQPViews)
+
+
+# Looping through parks to get WQP data. This will give you updated data for all
+# parks and sites listed in stations.csv. 
 WQPViews <- lapply(sort(unique(glkn_stations$Park)), function(park){
   
   # Getting site ID for park
   sites <- glkn_stations |>
-    filter(Park == park) |>
-    pull(MonitoringLocationIdentifier)
+    dplyr::filter(Park == park) |>
+    dplyr::pull(MonitoringLocationIdentifier)
   
   message("Pulling WQP data for ", park)
   
   # Getting WQP Data
-  dat <- readWQPdata(siteid = sites)
+  dat <- tryCatch(
+    {
+      suppressMessages(readWQPdata(siteid = sites))
+    },
+    # warning: no data for site, still returns partial data
+    warning = function(mess){
+      warning("Warning: ", conditionMessage(mess), " while pulling for ", park)
+              suppressMessages(readWQPdata(siteid = sites))
+    },
+    # error: park failed to download
+    error = function(err){
+      warning("ERROR: ", conitionMessages(err), " while pulling for ", park)
+      return(NULL)
+    }
+    )
+  
+  # Standardize column type 
+  if(!is.null(dat)){
+  dat <- dat |> 
+    dplyr::mutate(ResultMeasureValue = as.character(ResultMeasureValue))
+  }
   
   dat
+  
 })
 
 # creating dataframe
@@ -150,29 +214,14 @@ meta_data <- meta_data_large |>
                               Park == "SACN" ~ "St. CroixNational Scenic Riverway",
                               TRUE ~ "OTHER"),
          SiteCode = MonitoringLocationIdentifier,
-         # ,
-         #        SiteCode = as.character(str_split(MonitoringLocationIdentifier, # I'm not sure this is the correct information
-         #                             pattern = "_") |>
-         #          map(~ paste(.x[1:2],
-         #                      collapse = "_"))),
          SiteCodeWQX = SiteCode, # I'm not sure this is the correct information? 
-         # DisplayName = CharacteristicName,
-         # DataName = CharacteristicName,
-         # Category = CharacteristicName,
-         # CategoryDisplay = CharacteristicName,
-         # LowerPoint = 0,
-         # UpperPoint = 0,
-         # LowerDescription = "Nothing",
-         # UpperDescription = "Nothing",
          DataType = "numeric",
          AssessmentDetails = "Nothing",
          IsActiveSiteCode = TRUE,
          IsActiveCharacteristicName = TRUE,
          IsActive = TRUE) |> 
-  # select(-SiteCode) |> 
   rename(ParkCode = Park,
          SiteName = MonitoringLocationName,
-         # SiteCode = MonitoringLocationName,
          Lat = LatitudeMeasure,
          Long = LongitudeMeasure,
          Type = MonitoringLocationTypeName,
