@@ -20,6 +20,7 @@
 library(dataRetrieval) # download from WQP
 library(readr) # tidyverse data import
 library(dplyr) # data wrangling
+library(stringr) # data wrangling
 
 # Loading data ----
 # station data 
@@ -108,47 +109,25 @@ WQPViews <- lapply(sort(unique(glkn_stations$Park)), function(park){
 wqp_data_all <- bind_rows(WQPViews)
 
 # Data Wrangling ----
-## CharacteristicNames to remove ----
-chr_terms <- c("Age",
-               "Carbon, isotope of mass 13",
-               "Carbon-13/Carbon-12 ratio",
-               "Chlorophyll/Pheophytin ratio",
-               "Cloud cover (choice list)",
-               "External condition (text)",                           
-               "General observation (text)",                          
-               "Head Capsule Width",                                  
-               "Hind Femur Length",                                   
-               "Hindwing Length",                                     
-               "Length",                                              
-               "Length, total",
-               "Mercury",
-               "Methylmercury(1+)",
-               "Nitrogen-15",
-               "Nitrogen-15/Nitrogn-14 ratio",
-               "Secchi Reading Condition (choice list)",
-               "Sex (choice list)",
-               "Water appearance (text)",
-               "Wave height",
-               "Weather coments (text)",
-               "Weight",
-               "Wind Condition (choice list)",
-               "Wind direction (direction from, expressed 0-360 deg)")
 
 ## removing unneeded data ----
 wqp_data1 <- wqp_data_all |> 
+  # removing unneeded CharacteristicNames
+  semi_join(chr_lookup,
+            by = join_by(CharacteristicName)) |> 
   # removing quality control
   filter(!grepl("Quality Control",
                 ActivityTypeCode)) |> 
   # removing air and other
   filter(!grepl("Air|Other",
                 ActivityMediaName)) |> 
-  # removing low detection
-  filter(!grepl("Quantification Limit|Not Detected|Not Reported",
-                ResultDetectionConditionText)) |> 
-  filter(!CharacteristicName %in% chr_terms) |> 
-  # filter(!grepl(paste(chr_terms,
-  #                     collapse = "|"),
-  #               CharacteristicName)) |>
+  # adding censored data conditions
+  mutate(ResultMeasureValue = case_when(ResultDetectionConditionText == "Present Below Quantification Limit" ~ 
+                                          str_extract(ResultCommentText, "\\d*\\.?\\d+"),
+                                        TRUE ~ ResultMeasureValue)) |> 
+  # removing no detection/not reported
+  # filter(!grepl("Not Detected|Not Reported",
+  #               ResultDetectionConditionText)) |> # leaving these in for now so we can try to report how many values are there. 
   # correcting depth measurements
   mutate(ActivityDepthHeightMeasure.MeasureValue = if_else(ActivityDepthHeightMeasure.MeasureValue < -0.03, 0,
                                                            ActivityDepthHeightMeasure.MeasureValue),

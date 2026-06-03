@@ -146,7 +146,7 @@ shinyServer(function(input, output, session){
                                      GoodColor = "Blue",
                                      BadColor = "Orange",
                                      OutColor = "Vermillion",
-                                     PointSize = 6,
+                                     PointSize = 1,
                                      ThColor = "Orange",
                                      TrColor = "Green",
                                      LineWidth = 2,
@@ -292,7 +292,10 @@ shinyServer(function(input, output, session){
     TimeYears()
     ,{
       DataOpts$Years<-TimeYears()
-      ;shiny::callModule(yearChooser, id="SummaryYears", data=DataUseMultiple, chosen=reactive(DataOpts$Years))
+      ;shiny::callModule(yearChooser, 
+                         id="SummaryYears", 
+                         data=DataUseMultiple, 
+                         chosen=reactive(DataOpts$Years))
     }
   )
   ##### Depth ####
@@ -1158,8 +1161,12 @@ shinyServer(function(input, output, session){
                     parkcode = DataOpts$Park,
                     sitecode = NA,
                     charname = DataOpts$Param)
+    shiny::validate(
+      shiny::need(nrow(df1) > 0, "No data available for the selected Park / Site / Parameter")
+    )
 
     df <- suppressWarnings(df1 %>%
+                             dplyr::mutate(Date = as.Date(Date)) %>%
                              mutate(year.dec = julian(Date)/365,
                                     month = as.factor(months(Date))) %>%
                              group_by(month) %>%
@@ -1200,8 +1207,13 @@ shinyServer(function(input, output, session){
 
       combined_data <- dplyr::bind_rows(combined_data, site_data)
     }
+    
+    shiny::validate(
+      shiny::need(nrow(combined_data) > 0, "No data available for the selected Park / Site / Parameter")
+    )
 
     df <- suppressWarnings(combined_data %>%
+                             dplyr::mutate(Date = as.Date(Date)) %>%
                              dplyr::mutate(Year = lubridate::year(Date)) %>%
                              dplyr::mutate(year.dec = julian(Date)/365,
                                            month = as.factor(months(Date))) %>%
@@ -1244,6 +1256,7 @@ shinyServer(function(input, output, session){
     }
 
     df <- suppressWarnings(combined_data %>%
+                             dplyr::mutate(Date = as.Date(Date)) %>%
                              dplyr::mutate(Year = lubridate::year(Date)) %>%
                              dplyr::mutate(year.dec = julian(Date)/365,
                                            month = as.factor(months(Date))) %>%
@@ -1384,7 +1397,15 @@ shinyServer(function(input, output, session){
     #    })
     #
 
-    data_values <- DataUseMultiple () %>%
+    data_values1 <- DataUseMultiple () 
+    
+    # Warning if no data
+    shiny::validate(
+      shiny::need(nrow(data_values1) > 0,
+                  "No data available for the selected Park / Site / Parameter")
+    )
+    
+    data_values <- data_values1 %>%
 
       dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
       # dplyr::filter(Depth >= DataOpts$Depth[1] & Depth <= DataOpts$Depth[2]) %>% # depth filtering
@@ -1854,9 +1875,18 @@ shinyServer(function(input, output, session){
     #   dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
     #   # dplyr::filter(ActivityDepthHeightMeasure.MeasureValue >= as.numeric(DataOpts$Depth[1]) & ActivityDepthHeightMeasure.MeasureValue <= as.numeric(DataOpts$Depth[2])) %>% # depth filtering
     #   dplyr::arrange(MonitoringLocationName, Date)
-
+    
     ##### DF ####
-    series_df <- DataUseMultiple() %>%
+    series_df1 <- DataUseMultiple() 
+    
+    # Warning if no data
+    shiny::validate(
+      shiny::need(nrow(series_df1) > 0,
+                  "No data available for the selected Park / Site / Parameter")
+    )
+    
+    series_df <- series_df1 %>%
+      # dplyr::mutate(Date = as.Date(Date)) %>%
       filter(Year >= DataOpts$Years[1],
              Year <= DataOpts$Years[2]) %>%
       # filter(Depth >= DataOpts$Depth[1],
@@ -1870,6 +1900,8 @@ shinyServer(function(input, output, session){
     #          month_yr,
     #          .keep_all = T) %>%
     #   mutate(Date = as.Date(paste0(Year, "-07-01")))
+    
+    str(series_df)
 
     #### Initialize variables ####
     ynames <- c()
@@ -1981,6 +2013,42 @@ shinyServer(function(input, output, session){
       pad = 20
     )
     ## Plot ####
+    # ggbaseplot <- ggplot(data = series_df,
+    #                      aes(Date,
+    #                          Value,
+    #                          color = MonitoringLocationName,
+    #                          shape = MonitoringLocationName)) +
+    #   geom_point(size = GraphOpts$PointSize,
+    #              alpha = as.numeric(GraphOpts$ShowHidePoint)) +
+    #   geom_line(width = GraphOpts$LineWidth, 
+    #             na.rm = FALSE) + 
+    #   labs(x = xname,
+    #        y = yname,
+    #        color = "",
+    #        shape = "") +
+    #   theme_minimal(base_size = GraphOpts$FontSize) +
+    #   theme(plot.title = element_text(size = GraphOpts$FontSize),
+    #         axis.title.x = element_text(size = GraphOpts$FontSize),
+    #         axis.title.y = element_text(size = GraphOpts$FontSize),
+    #         legend.title = element_blank(),
+    #         legend.text = element_text(size = GraphOpts$FontSize),
+    #         plot.margin = margin(l = m$l + m$pad,
+    #                              r = m$r + m$pad,
+    #                              b = m$b + m$pad,
+    #                              t = m$t + m$pad,
+    #                              unit = "pt"))
+    # 
+    # baseplot <- ggplotly(ggbaseplot, 
+    #                      tooltip = c("y", "x")) %>%
+    #   style(hovertemplate = paste0(
+    #     "<br>Date: ", series_df$Date
+    #     ,"<br>Site: ", series_df$MonitoringLocationName
+    #     ,"<br>", yname, ": ", series_df$Value
+    #     # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+    #     # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+    #     ,'<extra></extra>')
+    #   ) 
+    
     baseplot <-
       plotly::plot_ly(
         series_df
@@ -2155,10 +2223,10 @@ shinyServer(function(input, output, session){
 
     # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L73
     ##### DF ####
-    series_df <- DataUseMultiple() %>%
-      dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
-      # dplyr::filter(ActivityDepthHeightMeasure.MeasureValue >= as.numeric(DataOpts$Depth[1]) & ActivityDepthHeightMeasure.MeasureValue <= as.numeric(DataOpts$Depth[2])) %>% # depth filtering
-      dplyr::arrange(MonitoringLocationName, Date)
+    # series_df <- DataUseMultiple() %>%
+    #   dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
+    #   # dplyr::filter(ActivityDepthHeightMeasure.MeasureValue >= as.numeric(DataOpts$Depth[1]) & ActivityDepthHeightMeasure.MeasureValue <= as.numeric(DataOpts$Depth[2])) %>% # depth filtering
+    #   dplyr::arrange(MonitoringLocationName, Date)
 
     # process the dataframe
     # n will vary depending on which `Param` is chosen (e.g., there will only ever be 1 air temp but there could be >1 water temp for one site visit)
@@ -2168,7 +2236,15 @@ shinyServer(function(input, output, session){
     colname_lookup <- c(Characteristic_y = 'Characteristic',
                         sitevisit_meanvalue_y = 'sitevisit_meanvalue')
 
-    df_firstparam <- DataUseMultiple() %>%
+    df_firstparam1 <- DataUseMultiple() 
+    
+    # Warning if no data
+    shiny::validate(
+      shiny::need(nrow(df_firstparam1) > 0,
+                  "No data available for the selected Park / Site / Parameter")
+    )
+    
+    df_firstparam <- df_firstparam1 %>%
       dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
       dplyr::arrange(MonitoringLocationName, Date) %>%
       dplyr::group_by(ActivityMediaSubdivisionName,
@@ -2181,7 +2257,16 @@ shinyServer(function(input, output, session){
 
     colname_lookup <- c(Characteristic_x = 'Characteristic',
                         sitevisit_meanvalue_x = 'sitevisit_meanvalue')
-    df_secondparam <- DataUseMultipleParam2() %>%
+    
+    df_secondparam1 <- DataUseMultipleParam2() 
+    
+    # Warning if no data
+    shiny::validate(
+      shiny::need(nrow(df_secondparam1) > 0,
+                  "No data available for the selected Park / Site / Parameter")
+    )
+    
+    df_secondparam <- df_secondparam1 %>%
       dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
       dplyr::arrange(MonitoringLocationName, Date) %>%
       dplyr::group_by(ActivityMediaSubdivisionName,
@@ -2407,17 +2492,20 @@ shinyServer(function(input, output, session){
     req(DataOpts$Park, DataOpts$Site, DataOpts$Param)
 
     ##### DF ####
-    profile_df <- DataUseMultiple() %>%
+    profile_df1 <- DataUseMultiple() 
+    
+    # Warning if no data
+    shiny::validate(
+      shiny::need(nrow(profile_df1) > 0,
+                  "No data available for the selected Park / Site / Parameter")
+    )
+    
+    profile_df <- profile_df1 %>%
       filter(as.numeric(Year) %in% as.numeric(DataOpts$Years)) %>%
-      # dplyr::mutate(mon = month(Date)) %>%
       dplyr::arrange(MonitoringLocationName,
                      month,
                      as.numeric(ActivityDepthHeightMeasure.MeasureValue))
-    
-    View(profile_df)
-    
 
-    
     #### Initialize variables ####
     xnames <- c()
     yname <- NA
@@ -2542,7 +2630,12 @@ shinyServer(function(input, output, session){
            y = "Depth",
            color = "Month",
            shape = "Site") +
-      theme_minimal()
+      theme_minimal() +
+      # theme(plot.title = element_text(size = GraphOpts$FontSize),
+      #               axis.title.x = element_text(size = GraphOpts$FontSize),
+      #               axis.title.y = element_text(size = GraphOpts$FontSize),
+      #               legend.title = element_blank(),
+      #               legend.text = element_text(size = GraphOpts$FontSize))
     
     baseplot <- ggplotly(ggbaseplot, 
                          tooltip = c("y", "customdata", "x")) %>%
@@ -3838,12 +3931,34 @@ shinyServer(function(input, output, session){
     mydatastructure <- list()
     for (site in DataOpts$Site) {
       mydatastructure[[site]]<-list()
+      
+      # Pull data
+      df <- getWData(WaterData,
+                     parkcode = DataOpts$Park,
+                     sitecode = site,
+                     charname = DataOpts$Param)
+      
+      # warning if no data 
+      shiny::validate(
+        shiny::need(
+          nrow(df) > 0,
+          paste0("No data available for the selected Park / Site / Parameter")
+        )
+      )
 
       # Building df
-      mydatastructure[[site]][["df"]] <- getWData(WaterData,
-                                                  parkcode = DataOpts$Park,
-                                                  sitecode = site,
-                                                  charname = DataOpts$Param)
+      mydatastructure[[site]][["df"]] <- df
+      
+      mydatastructure[[site]][["df"]] <- mydatastructure[[site]][["df"]][, c("MonitoringLocationName",
+                                                                             "Date",
+                                                                             "Characteristic",
+                                                                             "Value",
+                                                                             "ResultMeasure.MeasureUnitCode")]
+      # mydatastructure[[site]][["df"]] <- getWData(WaterData,
+      #                                             parkcode = DataOpts$Park,
+      #                                             sitecode = site,
+      #                                             charname = DataOpts$Param)
+      
       mydatastructure[[site]][["df"]] <- mydatastructure[[site]][["df"]][, c("MonitoringLocationName",
                                                                              "Date",
                                                                              "Characteristic",
