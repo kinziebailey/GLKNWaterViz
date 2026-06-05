@@ -121,6 +121,8 @@ wqp_data1 <- wqp_data_all |>
   # removing air and other
   filter(!grepl("Air|Other",
                 ActivityMediaName)) |> 
+  filter(!grepl("/", 
+                ActivityIdentifier)) |> 
   # adding censored data conditions
   mutate(ResultMeasureValue = case_when(ResultDetectionConditionText == "Present Below Quantification Limit" ~ 
                                           str_extract(ResultCommentText, "\\d*\\.?\\d+"),

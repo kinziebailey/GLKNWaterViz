@@ -1837,19 +1837,17 @@ shinyServer(function(input, output, session){
     summary_text_data()
   })
 
-  #### Time Series Plot 2.0 ####
+  #### Time Series Plot ####
   MakeSeriesPlot <- reactive({
-    # A reactive function that a plotly of boxplots based on user selected site(s) and aggregation method (year, month, or site).
+    # A timeseries plot based on user selected site(s), parameter, and years.
     # Args:
     #  DataOpts$Years, c(int), required. The character string provided by yearChooser() in global.R.
-    #  input$SummaryBoxBy, chr, required. Determines aggregation type and formats accordingly if month or year is selected.
-    #  input$BoxThreshLine, bool, optional. Default False. If True, looks up the water quality threshold.
     #  DataOpts$Park, chr, required. A park acronym. E.g., 'ROCR'.
     #  DataOpts$Site, chr or c(chr), required. A site code. E.g., 'NCRN_ROCR_KLVA'
     #  DataOpts$Param, chr, required. A characteristic abbreviation. E.g., 'DOper'.
     #
     # Returns:
-    #  Plotly figure
+    #  GGplotly figure
     #
     # Example:
     #   DataOpts$Years <- c(2010,2024),
@@ -1869,12 +1867,6 @@ shinyServer(function(input, output, session){
     #   )
     #
     req(DataOpts$Park, DataOpts$Site, DataOpts$Param)
-
-    # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L73
-    # series_df <- DataUseMultiple() %>%
-    #   dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
-    #   # dplyr::filter(ActivityDepthHeightMeasure.MeasureValue >= as.numeric(DataOpts$Depth[1]) & ActivityDepthHeightMeasure.MeasureValue <= as.numeric(DataOpts$Depth[2])) %>% # depth filtering
-    #   dplyr::arrange(MonitoringLocationName, Date)
     
     ##### DF ####
     series_df1 <- DataUseMultiple() 
@@ -1882,11 +1874,10 @@ shinyServer(function(input, output, session){
     # Warning if no data
     shiny::validate(
       shiny::need(nrow(series_df1) > 0,
-                  "No data available for the selected Park / Site / Parameter")
-    )
+                  "No data available for the selected Park / Site / Parameter"))
     
+    # creating plot dataframe
     series_df <- series_df1 %>%
-      # dplyr::mutate(Date = as.Date(Date)) %>%
       filter(Year >= DataOpts$Years[1],
              Year <= DataOpts$Years[2]) %>%
       # filter(Depth >= DataOpts$Depth[1],
@@ -1895,13 +1886,6 @@ shinyServer(function(input, output, session){
       summarise(Value = mean(Value, na.rm = TRUE),
                 .groups = "drop") %>%
       dplyr::arrange(MonitoringLocationName, Date)
-    # %>%
-    # distinct(MonitoringLocationName,
-    #          month_yr,
-    #          .keep_all = T) %>%
-    #   mutate(Date = as.Date(paste0(Year, "-07-01")))
-    
-    str(series_df)
 
     #### Initialize variables ####
     ynames <- c()
@@ -1914,7 +1898,6 @@ shinyServer(function(input, output, session){
     units <- c()
     displaynames <- c()
 
-    # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L75-L98
     #### Site ####
     for (site in DataOpts$Site){
       displayname <- getCharInfo(
@@ -1924,6 +1907,7 @@ shinyServer(function(input, output, session){
         ,charname = DataOpts$Param
         , info="DisplayName"
       )
+      
       #### Units ####
       displaynames <- c(displaynames, displayname)
       unit <- getCharInfo(
@@ -1992,7 +1976,6 @@ shinyServer(function(input, output, session){
       reference <- reference[!is.na(reference)] # needed if there is no upper or lower threshold.
     }
 
-    # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L106-L127
     ##### setting NA info ####
     n_not_na <- nrow(series_df %>% dplyr::filter(is.na(Value)==F))
     n_na <- nrow(series_df %>% dplyr::filter(is.na(Value)))
@@ -2013,87 +1996,44 @@ shinyServer(function(input, output, session){
       pad = 20
     )
     ## Plot ####
-    # ggbaseplot <- ggplot(data = series_df,
-    #                      aes(Date,
-    #                          Value,
-    #                          color = MonitoringLocationName,
-    #                          shape = MonitoringLocationName)) +
-    #   geom_point(size = GraphOpts$PointSize,
-    #              alpha = as.numeric(GraphOpts$ShowHidePoint)) +
-    #   geom_line(width = GraphOpts$LineWidth, 
-    #             na.rm = FALSE) + 
-    #   labs(x = xname,
-    #        y = yname,
-    #        color = "",
-    #        shape = "") +
-    #   theme_minimal(base_size = GraphOpts$FontSize) +
-    #   theme(plot.title = element_text(size = GraphOpts$FontSize),
-    #         axis.title.x = element_text(size = GraphOpts$FontSize),
-    #         axis.title.y = element_text(size = GraphOpts$FontSize),
-    #         legend.title = element_blank(),
-    #         legend.text = element_text(size = GraphOpts$FontSize),
-    #         plot.margin = margin(l = m$l + m$pad,
-    #                              r = m$r + m$pad,
-    #                              b = m$b + m$pad,
-    #                              t = m$t + m$pad,
-    #                              unit = "pt"))
-    # 
-    # baseplot <- ggplotly(ggbaseplot, 
-    #                      tooltip = c("y", "x")) %>%
-    #   style(hovertemplate = paste0(
-    #     "<br>Date: ", series_df$Date
-    #     ,"<br>Site: ", series_df$MonitoringLocationName
-    #     ,"<br>", yname, ": ", series_df$Value
-    #     # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-    #     # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-    #     ,'<extra></extra>')
-    #   ) 
-    
-    baseplot <-
-      plotly::plot_ly(
-        series_df
-        ,type = 'scatter'
-        ,mode = 'lines'
-        ,width = (GraphOpts$FigureHorizontalScaling*as.numeric(input$dimension[1])) # to dynamically resize fig
-        ,height = (GraphOpts$FigureVerticalScaling*as.numeric(input$dimension[2]))
-      ) %>% add_trace(
-        y = ~Value
-        ,x = ~Date
-        ,color = ~MonitoringLocationName
-        ,symbol = ~MonitoringLocationName
-        ,connectgaps = TRUE # set to FALSE to create breaks in the line for NAs
-        ,line = list(width = GraphOpts$LineWidth)
-        ,marker = list(
-          size = GraphOpts$PointSize
-          ,opacity = as.numeric(GraphOpts$ShowHidePoint)
-        )
-        ,hovertemplate = paste0(
-          "<br>Date: ", series_df$Date
-          ,"<br>Site: ", series_df$MonitoringLocationName
-          ,"<br>", yname, ": ", series_df$Value
-          # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-          # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-          ,'<extra></extra>'
-        )
-        ,text = NULL
-      ) %>% layout(
-        font = list(size=GraphOpts$FontSize)
-        ,margin = m
-        ,title = list(text=title ,font=list(size=GraphOpts$FontSize))
-        ,legend = list(
-          title = list(text='<br><br>')
-          ,font = list(size=GraphOpts$FontSize)
-        )
-        ,hovermode = 'x'
-        ,showlegend = T
-        ,yaxis = list(title = list(text = paste0(yname, '<br>'),
-                                   font = list(size = GraphOpts$FontSize)),
-                      font = list(size = GraphOpts$FontSize))
-        ,xaxis = list(title = list(text = paste0(xname, '<br>'),
-                                   font = list(size = GraphOpts$FontSize)),
-                      font = list(size = GraphOpts$FontSize))
-      )
+    ggbaseplot <- ggplot(data = series_df[!is.na(series_df$Value), ],
+                         aes(Date,
+                             Value,
+                             color = MonitoringLocationName,
+                             shape = MonitoringLocationName)) +
+      geom_point(size = GraphOpts$PointSize,
+                 alpha = as.numeric(GraphOpts$ShowHidePoint)) +
+      geom_line(width = GraphOpts$LineWidth,
+                na.rm = FALSE) +
+      labs(x = xname,
+           y = yname,
+           color = "",
+           shape = "") +
+      theme_minimal(base_size = GraphOpts$FontSize) #+
+      # theme(
+        # plot.title = element_text(size = GraphOpts$FontSize),
+        #     axis.title.x = element_text(size = GraphOpts$FontSize),
+        #     axis.title.y = element_text(size = GraphOpts$FontSize),
+        #     legend.title = element_blank(),
+        #     legend.text = element_text(size = GraphOpts$FontSize),
+            # plot.margin = margin(l = m$l + m$pad,
+            #                      r = m$r + m$pad,
+            #                      b = m$b + m$pad,
+            #                      t = m$t + m$pad,
+            #                      unit = "pt"))
 
+    baseplot <- ggplotly(ggbaseplot,
+                         tooltip = c("y", "x")) %>%
+      style(hovertemplate = paste0(
+        "<br>Date: ", series_df$Date
+        ,"<br>Site: ", series_df$MonitoringLocationName
+        ,"<br>", yname, ": ", series_df$Value
+        # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+        # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+        ,'<extra></extra>')
+      )
+  
+    # Threshold values
     if (assessment == T & identical(threshold, numeric(0)) == F) {
       # a <- list( # commented-out because the annotation doesn't look great
       #   x = 1,
@@ -2233,6 +2173,7 @@ shinyServer(function(input, output, session){
     # so we need to normalize the data: calculate the mean `Value` per site visit
     # then we can plot the means against each other
 
+    # First parameter
     colname_lookup <- c(Characteristic_y = 'Characteristic',
                         sitevisit_meanvalue_y = 'sitevisit_meanvalue')
 
@@ -2241,20 +2182,18 @@ shinyServer(function(input, output, session){
     # Warning if no data
     shiny::validate(
       shiny::need(nrow(df_firstparam1) > 0,
-                  "No data available for the selected Park / Site / Parameter")
-    )
+                  "No data available for the selected Park / Site / Parameter"))
     
     df_firstparam <- df_firstparam1 %>%
       dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
       dplyr::arrange(MonitoringLocationName, Date) %>%
-      dplyr::group_by(ActivityMediaSubdivisionName,
-                      MonitoringLocationName,
-                      Characteristic,
-                      Date) %>%
-      dplyr::summarize(sitevisit_meanvalue = mean(Value)) %>%
-      dplyr::ungroup() %>%
+      dplyr::summarize(sitevisit_meanvalue = mean(Value, na.rm = TRUE),
+                       .by = c(MonitoringLocationName,
+                               Characteristic,
+                               Date)) %>%
       dplyr::rename(all_of(colname_lookup))
 
+    # second parameter
     colname_lookup <- c(Characteristic_x = 'Characteristic',
                         sitevisit_meanvalue_x = 'sitevisit_meanvalue')
     
@@ -2263,27 +2202,20 @@ shinyServer(function(input, output, session){
     # Warning if no data
     shiny::validate(
       shiny::need(nrow(df_secondparam1) > 0,
-                  "No data available for the selected Park / Site / Parameter")
-    )
+                  "No data available for the selected Park / Site / Parameter"))
     
     df_secondparam <- df_secondparam1 %>%
       dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
       dplyr::arrange(MonitoringLocationName, Date) %>%
-      dplyr::group_by(ActivityMediaSubdivisionName,
-                      MonitoringLocationName,
-                      Characteristic,
-                      Date) %>%
-      dplyr::summarize(sitevisit_meanvalue = mean(Value)) %>%
-      dplyr::ungroup() %>%
-      dplyr::rename(all_of(colname_lookup)) %>%
-      dplyr::select(ActivityMediaSubdivisionName,
-                    Characteristic_x,
-                    sitevisit_meanvalue_x)
-
+      dplyr::summarize(sitevisit_meanvalue = mean(Value, na.rm = TRUE),
+                       .by = c(MonitoringLocationName,
+                               Characteristic,
+                               Date)) %>%
+      dplyr::rename(all_of(colname_lookup))
+    
     df <- dplyr::inner_join(df_firstparam,
-                            df_secondparam,
-                            by = dplyr::join_by(ActivityMediaSubdivisionName)) # this is weird code...
-
+                            df_secondparam)
+                         
     #### Initialize variables ####
     ynames <- c()
     xnames <- c()
@@ -2409,50 +2341,33 @@ shinyServer(function(input, output, session){
     )
 
     ##### Plot ####
-    baseplot <-
-      plotly::plot_ly(
-        df
-        ,y = ~sitevisit_meanvalue_y
-        ,x = ~sitevisit_meanvalue_x
-        ,color = ~MonitoringLocationName
-        ,symbol = ~MonitoringLocationName
-        ,type = 'scatter'
-        # ,mode='lines'
-        # ,connectgaps=TRUE # set to FALSE to create breaks in the line for NAs
-        ,width = (GraphOpts$FigureHorizontalScaling*as.numeric(input$dimension[1])) # to dynamically resize fig
-        ,height = (GraphOpts$FigureVerticalScaling*as.numeric(input$dimension[2]))
-        # ,line=list(width=input$LineWidth)
-        ,marker = list(
-          size = GraphOpts$PointSize
-          ,opacity = 1
-        )
-        ,hovertemplate = paste0(
-          "<br>Date: ", df$Date
-          ,"<br>Site: ", df$MonitoringLocationName
-          ,"<br>",xname, ": ", df$sitevisit_meanvalue_x
-          ,"<br>",yname, ": ", df$sitevisit_meanvalue_y
-          # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-          # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-          ,'<extra></extra>'
-        )
-        ,text = NULL
-      ) %>% layout(
-        font = list(size=GraphOpts$FontSize)
-        ,margin = m
-        ,title = list(text = title,
-                      font = list(size = GraphOpts$FontSize))
-        ,legend = list(
-          title = list(text = '<br>Site<br>')
-          ,font = list(size = GraphOpts$FontSize)
-        )
-        ,showlegend = T
-        ,yaxis = list(title = list(text = paste0(yname, '<br>'),
-                                   font = list(size = GraphOpts$FontSize)),
-                      font = list(size = GraphOpts$FontSize))
-        ,xaxis = list(title = list(text = paste0(xname, '<br>'),
-                                   font = list(size = GraphOpts$FontSize)),
-                      font = list(size = GraphOpts$FontSize))
-      )
+    ggbaseplot <- ggplot(data = df,
+                         aes(x = sitevisit_meanvalue_x,
+                         y = sitevisit_meanvalue_y,
+                         color = MonitoringLocationName,
+                         shape = MonitoringLocationName)) +
+    geom_point(size = GraphOpts$PointSize,
+               alpha = as.numeric(GraphOpts$ShowHidePoint)) +
+    geom_smooth(width = GraphOpts$LineWidth, 
+                na.rm = FALSE,
+                se = FALSE) + 
+    labs(x = xname,
+         y = yname,
+         color = "",
+         shape = "") +
+    theme_minimal(base_size = GraphOpts$FontSize)
+  
+  baseplot <- ggplotly(ggbaseplot, 
+                       tooltip = c("y", "x")) %>%
+    style(hovertemplate = paste0(
+      "<br>Date: ", df$Date
+       ,"<br>Site: ", df$MonitoringLocationName
+       ,"<br>",xname, ": ", df$sitevisit_meanvalue_x
+       ,"<br>",yname, ": ", df$sitevisit_meanvalue_y
+       # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
+       # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
+       ,'<extra></extra>')
+     )
 
     return(baseplot)
 
@@ -2461,7 +2376,6 @@ shinyServer(function(input, output, session){
   output$CorrPlot <- renderPlotly({   MakeCorrPlot() })
   
   #### Profile Plot ####
-  ## NEED TO EDIT THE INFO ##
   MakeProfilePlot <- reactive({
     # A reactive function that returns a plotly scatterplot of the depth profile.
     # Args:
@@ -2497,8 +2411,7 @@ shinyServer(function(input, output, session){
     # Warning if no data
     shiny::validate(
       shiny::need(nrow(profile_df1) > 0,
-                  "No data available for the selected Park / Site / Parameter")
-    )
+                  "No data available for the selected Park / Site / Parameter"))
     
     profile_df <- profile_df1 %>%
       filter(as.numeric(Year) %in% as.numeric(DataOpts$Years)) %>%
@@ -2630,7 +2543,7 @@ shinyServer(function(input, output, session){
            y = "Depth",
            color = "Month",
            shape = "Site") +
-      theme_minimal() +
+      theme_minimal() #+
       # theme(plot.title = element_text(size = GraphOpts$FontSize),
       #               axis.title.x = element_text(size = GraphOpts$FontSize),
       #               axis.title.y = element_text(size = GraphOpts$FontSize),
@@ -2646,39 +2559,7 @@ shinyServer(function(input, output, session){
         "<extra></extra>")) %>%
       layout(hovermode = "closest",
              legend = list(title = list(text = "Site"))
-      )    
-
-    
-    # baseplot <-
-    #   group_map(~ plotly::plot_ly(
-    #     profile_df
-    #     ,type = 'scatter'
-    #     ,mode = 'lines+markers'
-    #     ,x = ~Value
-    #     ,y = ~as.numeric(ActivityDepthHeightMeasure.MeasureValue)
-    #     ,split = ~interaction(MonitoringLocationName, month)
-    #     ,color = ~month
-    #     ,symbol = ~MonitoringLocationName
-    #     ,customdata = profile_df$MonitoringLocationName
-    #     ,marker = list(
-    #       size = GraphOpts$PointSize
-    #       ,opacity = as.numeric(GraphOpts$ShowHidePoint)
-    #     )
-    #     ,hovertemplate = paste0(
-    #       "Depth: %{y}"
-    #       ,"<br>Site: %{customdata}"
-    #       ,"<br>", xname, ": %{x}"
-    #       ,'<extra></extra>'
-    #     )
-    #   ), .keep = TRUE) %>%
-    #     layout(title = list(text = title),
-    #            xaxis = list(title = xname),
-    #            yaxis = list(title = "Depth"),
-    #            hovermode = "closest",
-    #            legend = list(title =list(text = "Site"))) %>%
-    #   subplot(nrows = 1,
-    #           shareX = TRUE,
-    #           shareY = TRUE)
+      ) 
    
     ## Remove? ---- 
   #   if (assessment == T & identical(threshold, numeric(0)) == F) {
@@ -2692,7 +2573,7 @@ shinyServer(function(input, output, session){
   #     #   ax = 20,
   #     #   ay = -40
   #     # )
-  #     ##### WQ Threshold ####
+   ##### WQ Threshold ####
   #     if (length(threshold) == 2){
   #       baseplot %>% add_trace(
   #         name = 'Water Quality Threshold'
@@ -2774,7 +2655,7 @@ shinyServer(function(input, output, session){
   #   }
   })
   
-    ## Plot ----
+    ##### Plot ----
   output$ProfilePlot <- renderPlotly({   MakeProfilePlot() })
   
 
@@ -2831,295 +2712,6 @@ shinyServer(function(input, output, session){
     )
   }
 
-  #### Scatter Plot ####
-  # MakeScatterPlot <- reactive({
-  #   # A reactive function that using plotly to create a scatter plot based on user selected site(s) and aggregation method (year, month, site, or depth).
-  #   # Args:
-  #   #  DataOpts$Years, c(int), required. The character string provided by yearChooser() in global.R.
-  #   #  input$SummaryBoxBy, chr, required. Determines aggregation type and formats accordingly if month or year is selected.
-  #   #  input$BoxThreshLine, bool, optional. Default False. If True, looks up the water quality threshold.
-  #   #  DataOpts$Park, chr, required. A park acronym. E.g., 'VOYA'.
-  #   #  DataOpts$Site, chr or c(chr), required. A site code. E.g., 'NCRN_ROCR_KLVA'
-  #   #  DataOpts$Param, chr, required. A characteristic abbreviation. E.g., 'DOper'.
-  #   #
-  #   # Returns:
-  #   #  Plotly figure
-  #   #
-  #   # Example:
-  #   #   DataOpts$Years <- c(2010,2024),
-  #   #   input$SummaryBoxBy <- "year"
-  #   #   input$BoxThreshLine <- T
-  #   #   DataOpts$Park <- 'ROCR'
-  #   #   DataOpts$Site <- c('NCRN_ROCR_KLVA', 'NCRN_ROCR_FEBR')
-  #   #   DataOpts$Param <- 'DOper'
-  #   #
-  #   #   myfigure <- MakeScatterPlot(
-  #   #     DataOpts$Years
-  #   #     ,input$SummaryBoxBy
-  #   #     ,input$SeriesThreshLine
-  #   #     ,DataOpts$Park
-  #   #     ,DataOpts$Site
-  #   #     ,DataOpts$Param
-  #   #   )
-  #   #
-  #   req(DataOpts$Park, DataOpts$Site, DataOpts$Param)
-  # 
-  #   # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L73
-  #   ##### DF ####
-  #   scatter_df <- DataUseMultiple() %>%
-  #     dplyr::filter(Year >= DataOpts$Years[1] & Year <= DataOpts$Years[2]) %>% #year filtering
-  #     # dplyr::filter(ActivityDepthHeightMeasure.MeasureValue >= as.numeric(DataOpts$Depth[1]) &
-  #     #                 ActivityDepthHeightMeasure.MeasureValue <= as.numeric(DataOpts$Depth[2])) %>% # depth filtering
-  #     dplyr::arrange(MonitoringLocationName, Date)
-  # 
-  #   #### Initialize variables ####
-  #   ynames <- c()
-  #   xname <- NA
-  #   labels <- NA
-  #   assessment <- input$SeriesThreshLine
-  #   assessments <- c()
-  #   threshold <- NA
-  #   references <- c()
-  #   units <- c()
-  #   displaynames <- c()
-  # 
-  #   # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L75-L98
-  #   ##### Site ####
-  #   for (site in DataOpts$Site){
-  #     displayname <- getCharInfo(
-  #       object = WaterData
-  #       ,parkcode = DataOpts$Park
-  #       ,sitecode = site
-  #       ,charname = DataOpts$Param
-  #       , info = "DisplayName"
-  #     )
-  #     ##### Units ####
-  #     displaynames <- c(displaynames, displayname)
-  #     unit <- getCharInfo(
-  #       object = WaterData
-  #       ,parkcode = DataOpts$Park
-  #       ,sitecode = site
-  #       ,charname = DataOpts$Param
-  #       ,info = "Units"
-  #     )
-  # 
-  #     units <- c(units, unit)
-  #     yname<-paste0(displayname," (", unit,")")
-  #     ynames <- c(yname, ynames)
-  #   }
-  # 
-  #   units <- units %>% unique
-  #   displaynames <- displaynames %>% unique
-  # 
-  #   # resolve conflicts that would happen if the metadata file was messed up
-  #   # e.g., if one characteristic had multiple units
-  #   n_ynames <- length(ynames %>% unique)
-  #   if (n_ynames == 1){
-  #     yname <- ynames %>% unique
-  #   } else if (n_ynames == 0){
-  #     yname <- ''
-  #   } else {
-  #     yname <- ynames[1]
-  #   }
-  # 
-  #   xname <- 'Date'
-  #   ##### Thresholds ####
-  #   if(assessment){
-  #     for (site in DataOpts$Site){
-  #       tmp <- c(getCharInfo(object = WaterData,
-  #                            parkcode = DataOpts$Park,
-  #                            sitecode = site,
-  #                            charname = DataOpts$Param,
-  #                            info = "LowerPoint"),
-  #                getCharInfo(object = WaterData,
-  #                            parkcode = DataOpts$Park,
-  #                            sitecode = site,
-  #                            charname = DataOpts$Param,
-  #                            info = "UpperPoint")) %>%
-  #         unlist %>% unique
-  #       assessments <- c(tmp, assessments)
-  # 
-  #       tmp2 <- c(getCharInfo(object = WaterData,
-  #                             parkcode = DataOpts$Park,
-  #                             sitecode = site,
-  #                             charname = DataOpts$Param,
-  #                             info= "AssessmentDetails"),
-  #                 getCharInfo(object = WaterData,
-  #                             parkcode = DataOpts$Park,
-  #                             sitecode = site,
-  #                             charname = DataOpts$Param,
-  #                             info = "AssessmentDetails")) %>%
-  #         unlist %>% unique
-  #       references <- c(tmp2, references)
-  #     }
-  # 
-  #     threshold <- assessments %>% unique
-  #     threshold <- threshold[!is.na(threshold)] # needed if there is no upper or lower threshold.
-  # 
-  #     reference <- references %>% unique
-  #     reference <- reference[!is.na(reference)] # needed if there is no upper or lower threshold.
-  #   }
-  # 
-  #   # https://github.com/NCRN/NCRNWater/blob/87a16069713e2ea188d8bb8a2ae0cab97a43af4f/R/waterbox.R#L106-L127
-  #   ##### Setting NA info ####
-  #   n_not_na <- nrow(scatter_df %>% dplyr::filter(is.na(Value)==F))
-  #   n_na <- nrow(scatter_df %>% dplyr::filter(is.na(Value)))
-  #   title <- paste0(NCRNWater::getParkInfo(object = WaterData,
-  #                                          parkcode = DataOpts$Park,
-  #                                          info = "ParkLongName"),
-  #                   ': ', yname, '\nYears: ',DataOpts$Years[1], '-',
-  #                   DataOpts$Years[2],'; Total measurements: ',n_not_na+n_na,
-  #                   ' (non-NA: ', n_not_na, ', NA: ', n_na,')')
-  # 
-  #   m <- list( # figure margins
-  #     l = 100,
-  #     r = 50,
-  #     b = 100,
-  #     t = 100,
-  #     pad = 20
-  #   )
-  #   #### Plot ####
-  #   baseplot <-
-  #     plotly::plot_ly(
-  #       scatter_df
-  #       ,type = 'scatter'
-  #       ,mode = 'markers'
-  #       ,width = (GraphOpts$FigureHorizontalScaling*as.numeric(input$dimension[1])) # to dynamically resize fig
-  #       ,height = (GraphOpts$FigureVerticalScaling*as.numeric(input$dimension[2]))
-  #     ) %>% add_trace(
-  #       y = ~Value
-  #       ,x = ~Date
-  #       ,color = ~MonitoringLocationName
-  #       ,symbol = ~MonitoringLocationName
-  #       # ,connectgaps=TRUE # set to FALSE to create breaks in the line for NAs
-  #       # ,line=list(width=GraphOpts$LineWidth)
-  #       ,marker = list(
-  #         size = GraphOpts$PointSize
-  #         ,opacity = as.numeric(GraphOpts$ShowHidePoint)
-  #       )
-  #       ,hovertemplate = paste0(
-  #         "<br>Date: ", scatter_df$Date
-  #         ,"<br>Site: ", scatter_df$MonitoringLocationName
-  #         ,"<br>", yname, ": ", scatter_df$Value
-  #         # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-  #         # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-  #         ,'<extra></extra>'
-  #       )
-  #       ,text = NULL
-  #     ) %>% layout(
-  #       font = list(size = GraphOpts$FontSize)
-  #       ,margin = m
-  #       ,title = list(text = title,
-  #                     font = list(size = GraphOpts$FontSize))
-  #       ,legend = list(
-  #         title = list(text = '<br><br>')
-  #         ,font = list(size = GraphOpts$FontSize)
-  #       )
-  #       ,hovermode = 'x'
-  #       ,showlegend = T
-  #       ,yaxis = list(title = list(text = paste0(yname, '<br>'),
-  #                                  font = list(size = GraphOpts$FontSize)),
-  #                     font = list(size = GraphOpts$FontSize))
-  #       ,xaxis = list(title = list(text = paste0(xname, '<br>'),
-  #                                  font = list(size = GraphOpts$FontSize)),
-  #                     font = list(size = GraphOpts$FontSize))
-  #     )
-  #   ##### Thresholds ####
-  #   if (assessment == T & identical(threshold, numeric(0)) == F) {
-  #     # a <- list( # commented-out because the annotation doesn't look great
-  #     #   x = 1,
-  #     #   y = 0.95*threshold,
-  #     #   text = paste0(stringr::str_split_1(yname, '[(]')[1], 'threshold: ', threshold, ' ', stringr::str_extract(yname, '(?<=\\()[^\\^\\)]+')),
-  #     #   xref = "x",
-  #     #   yref = "y",
-  #     #   showarrow = F,
-  #     #   ax = 20,
-  #     #   ay = -40
-  #     # )
-  #     if (length(threshold) == 2){
-  #       baseplot %>% add_trace(
-  #         name = 'Water Quality Threshold'
-  #         ,x = ~Date
-  #         ,y = threshold[1]
-  #         ,mode = "lines"
-  #         # ,hoverinfo="text"
-  #         # ,text="hello"
-  #         ,hovertemplate = paste0(
-  #           "<br>Water Quality Threshold"
-  #           ,"<br>", yname, ": ", threshold[1]
-  #           # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[1]}
-  #           # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-  #           # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-  #           ,'<extra></extra>'
-  #         )
-  #         ,text = NULL
-  #         ,line = list(width = GraphOpts$LineWidth,
-  #                      dash = 'dash',
-  #                      color = GraphOpts$ThColor)
-  #       ) %>% add_trace(
-  #         name = 'Water Quality Threshold'
-  #         ,x = ~Date
-  #         ,y = threshold[2]
-  #         ,mode = "lines"
-  #         # ,hoverinfo="text"
-  #         # ,text="hello"
-  #         ,hovertemplate = paste0(
-  #           "<br>Water Quality Threshold"
-  #           ,"<br>", yname, ": ", threshold[2]
-  #           # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[2]}
-  #           # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-  #           # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-  #           ,'<extra></extra>'
-  #         )
-  #         ,text = NULL
-  #         # ,color = GraphOpts$ThColor
-  #         ,line = list(width = GraphOpts$LineWidth,
-  #                      dash = 'dash',
-  #                      color = GraphOpts$ThColor)
-  #       )
-  #       #   baseplot %>% layout(
-  #       #   shapes = list(
-  #       #     hline(threshold[1])
-  #       #     ,hline(threshold[2])
-  #       #     )
-  #       #   # ,annotations = a # commented-out because the annotation doesn't look great
-  #       # )
-  # 
-  #     } else if (length(threshold) == 1){
-  #       baseplot %>% add_trace(
-  #         name = 'Water Quality Threshold'
-  #         ,x = ~Date
-  #         ,y = threshold
-  #         ,mode = "lines"
-  #         # ,hoverinfo="text"
-  #         # ,text="hello"
-  #         ,hovertemplate = paste0(
-  #           "<br>Water Quality Threshold"
-  #           ,"<br>", yname, ": ", threshold
-  #           # ,"<br>Reference: ", if(length(reference)==1){reference} else {reference[2]}
-  #           # extra is a secondary bit of hovertext that's visible on the right-ide of the main hovertext
-  #           # https://community.plotly.com/t/disabling-default-tooltip-while-using-a-hovertemplate-in-python/85824/3
-  #           ,'<extra></extra>'
-  #         )
-  #         ,text = NULL
-  #         # ,color = GraphOpts$ThColor
-  #         ,line = list(width = GraphOpts$LineWidth,
-  #                      dash = 'dash',
-  #                      color = GraphOpts$ThColor)
-  #       )
-  #       # baseplot %>% layout(
-  #       #   shapes = list(hline(threshold))
-  #       # # ,annotations = a # commented-out because the annotation doesn't look great
-  #       # )
-  #     }
-  #   } else {
-  # 
-  #     baseplot
-  #   }
-  # })
-  # 
-  # output$ScatterPlot <- renderPlotly({   MakeScatterPlot() })
-
   #### Box Plot ####
   MakeBoxPlot <- reactive({
     # A reactive function that a plotly of boxplots based on user selected site(s) and aggregation method (year, month, or site).
@@ -3158,6 +2750,11 @@ shinyServer(function(input, output, session){
     ##### DF ####
     table <- summary()
 
+    # Warning if no data
+    shiny::validate(
+      shiny::need(nrow(table) > 0,
+                  "No data available for the selected Park / Site / Parameter"))
+    
     table <- table %>%
       dplyr::mutate(Aggregation = ifelse(Aggregation %in% month.abb,
                                          month.name[match(Aggregation, month.abb)], Aggregation))
@@ -3171,12 +2768,21 @@ shinyServer(function(input, output, session){
                                          info = "SiteName")
 
     site_info <- data.frame(SiteCode = site_codes, SiteName = site_names, stringsAsFactors = FALSE)
+    
 
     table <- table %>%
       dplyr::left_join(site_info, by = c("Site" = "SiteCode")) %>%
       dplyr::mutate(Site = ifelse(!is.na(SiteName), SiteName, Site)) %>%
-      dplyr::select(-SiteName)
-
+      dplyr::select(-SiteName) %>%
+      dplyr::mutate(across(c(Minimum,
+                             Q1, 
+                             Mean,
+                             Median,
+                             Q3,
+                             Maximum,
+                             Standard_Deviation),
+                           ~ suppressWarnings(as.numeric(.))))
+    
     #### Table grouping ####
     if (input$SummaryBoxBy %in% c("month", "year")) {
 
@@ -3343,7 +2949,37 @@ shinyServer(function(input, output, session){
     ) %>% dplyr::filter(
       Total_Measurements != Missing_Values # filter-out groups with all NA observations
     )
+
     #### Plot ####
+    # ggbaseplot_box <- ggplot(data = summary_table,
+    #                      aes(x = factor(Aggregation),
+    #                          lower = Q1,
+    #                          upper = Q3,
+    #                          middle = Median,
+    #                          ymin = Minimum,
+    #                          ymax = Maximum,
+    #                          fill = Site)) +
+    #   geom_boxplot(stat = "identity") +
+    #   labs(x = xname,
+    #        y = yname,
+    #        fill = "") +
+    #   theme_minimal(base_size = GraphOpts$FontSize)
+    # 
+    # baseplot <- ggplotly(ggbaseplot_box,
+    #                      tooltip = c("y", "x")) %>%
+    #   style(
+    #     hovertemplate = paste0(
+    #       "<br>Date: ", summary_table$Aggregation,
+    #       "<br>Site: ", summary_table$Site,
+    #       "<br>Min: ", summary_table$Minimum,
+    #       "<br>Q1: ", summary_table$Q1,
+    #       "<br>Median: ", summary_table$Median,
+    #       "<br>Q3: ", summary_table$Q3,
+    #       "<br>Max: ", summary_table$Maximum,
+    #       "<extra></extra>")
+    #     )
+        
+
     baseplot <-
       plotly::plot_ly(
         summary_table
